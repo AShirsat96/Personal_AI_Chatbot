@@ -853,62 +853,61 @@ def main():
     # Get avatar for display
     avatar_src = st.session_state.get("avatar_base64", "https://via.placeholder.com/40x40/667eea/ffffff?text=A")
     
-    # Chat widget container
-    chat_container = st.container()
+    # Chat widget container - render as single block to prevent HTML text display
+    messages_html = ""
     
-    with chat_container:
-        st.markdown(f"""
-        <div class="chat-widget">
-            <div class="chat-header">
-                <img src="{avatar_src}" class="chat-avatar" alt="Aniket">
-                <div class="chat-info">
-                    <h3>Ask Aniket</h3>
-                    <p>Portfolio Assistant</p>
+    # Build all messages HTML
+    for message in st.session_state.messages:
+        timestamp = message.get("timestamp", datetime.now()).strftime("%H:%M")
+        
+        if message["role"] == "assistant":
+            messages_html += f"""
+            <div class="message">
+                <img src="{avatar_src}" class="message-avatar" alt="Aniket">
+                <div>
+                    <div class="message-content">
+                        {message["content"]}
+                    </div>
+                    <div class="message-time">{timestamp}</div>
                 </div>
             </div>
-            
-            <div class="chat-messages">
-        """, unsafe_allow_html=True)
-        
-        # Display messages
-        for message in st.session_state.messages:
-            timestamp = message.get("timestamp", datetime.now()).strftime("%H:%M")
-            
-            if message["role"] == "assistant":
-                st.markdown(f"""
-                <div class="message">
-                    <img src="{avatar_src}" class="message-avatar" alt="Aniket">
-                    <div>
-                        <div class="message-content">
-                            {message["content"]}
-                        </div>
-                        <div class="message-time">{timestamp}</div>
-                    </div>
+            """
+        else:
+            user_initial = st.session_state.user_name[0].upper() if st.session_state.user_name else "U"
+            messages_html += f"""
+            <div class="message user">
+                <div style="background: #667eea; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
+                    {user_initial}
                 </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="message user">
-                    <div style="background: #667eea; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
-                        {st.session_state.user_name[0].upper() if st.session_state.user_name else "U"}
+                <div>
+                    <div class="message-content">
+                        {message["content"]}
                     </div>
-                    <div>
-                        <div class="message-content">
-                            {message["content"]}
-                        </div>
-                        <div class="message-time" style="text-align: left;">{timestamp}</div>
-                    </div>
+                    <div class="message-time" style="text-align: left;">{timestamp}</div>
                 </div>
-                """, unsafe_allow_html=True)
-        
-        st.markdown("""
             </div>
-            
-            <div class="powered-by">
-                This chat is powered by AI, designed to assist you with information about Aniket's background and services. While I'm constantly improving, please feel free to ask for more details or clarification if you ever need to!
+            """
+    
+    # Render complete chat widget as single HTML block
+    st.markdown(f"""
+    <div class="chat-widget">
+        <div class="chat-header">
+            <img src="{avatar_src}" class="chat-avatar" alt="Aniket">
+            <div class="chat-info">
+                <h3>Ask Aniket</h3>
+                <p>Portfolio Assistant</p>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        
+        <div class="chat-messages">
+            {messages_html}
+        </div>
+        
+        <div class="powered-by">
+            This chat is powered by AI, designed to assist you with information about Aniket's background and services. While I'm constantly improving, please feel free to ask for more details or clarification if you ever need to!
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Chat input
     if st.session_state.asking_for_name:
