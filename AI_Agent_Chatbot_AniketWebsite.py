@@ -853,12 +853,12 @@ def main():
     # Get avatar for display
     avatar_src = st.session_state.get("avatar_base64", "https://via.placeholder.com/40x40/667eea/ffffff?text=A")
     
-    # Custom CSS for full-width chat interface
+    # Custom CSS for full-width chat interface with proper avatar spacing
     st.markdown("""
     <style>
-    /* Main container styling - full width */
+    /* Main container styling - full width with proper top padding */
     .block-container {
-        padding-top: 1rem;
+        padding-top: 3rem !important;
         padding-bottom: 1rem;
         max-width: 100% !important;
         padding-left: 1rem !important;
@@ -876,12 +876,13 @@ def main():
         max-width: 100% !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
+        padding-top: 3rem !important;
     }
     
     /* Chat messages container */
     .chat-container {
         background: white;
-        padding: 0 !important;
+        padding: 1rem 0 !important;
         margin: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
@@ -892,7 +893,7 @@ def main():
         padding: 1rem !important;
         max-width: 100% !important;
         width: 100% !important;
-        margin: 0 !important;
+        margin: 0.5rem 0 !important;
         box-sizing: border-box !important;
     }
     
@@ -901,6 +902,7 @@ def main():
         width: 100% !important;
         display: flex !important;
         flex-wrap: wrap !important;
+        align-items: flex-start !important;
     }
     
     /* Message content area */
@@ -913,18 +915,22 @@ def main():
         margin-left: 10px !important;
     }
     
-    /* Avatar styling */
+    /* Avatar styling - ensure full visibility */
     .stChatMessage [data-testid="chatAvatarIcon-assistant"],
     .stChatMessage [data-testid="chatAvatarIcon-user"] {
         flex-shrink: 0 !important;
         width: 40px !important;
         height: 40px !important;
+        margin-top: 0 !important;
+        position: relative !important;
+        top: 0 !important;
     }
     
     /* Chat input styling */
     .stChatInput {
         max-width: 100% !important;
         width: 100% !important;
+        margin-top: 1rem !important;
     }
     
     .stChatInput > div > div > div {
@@ -947,7 +953,7 @@ def main():
         align-items: flex-start !important;
         gap: 10px !important;
         padding: 12px 16px !important;
-        margin-bottom: 15px !important;
+        margin: 15px 0 !important;
         max-width: 100% !important;
         width: 100% !important;
         box-sizing: border-box !important;
