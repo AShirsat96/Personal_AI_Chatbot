@@ -1000,13 +1000,7 @@ def main():
             ]
             st.session_state.asking_for_name = True
         
-        # User information collection (only show if not collected)
-        if not st.session_state.user_info_collected:
-            # Show limited message during info collection
-            if st.session_state.asking_for_name:
-                st.markdown("### 👋 Please share your name to get started")
-            elif st.session_state.asking_for_email:
-                st.markdown(f"### 📧 Nice to meet you, {st.session_state.user_name}! What's your email address?")
+        # User information collection (only show if not collected) - removed the header messages
         
         st.markdown("---")
         
