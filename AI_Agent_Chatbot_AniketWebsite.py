@@ -839,7 +839,7 @@ def main():
         st.session_state.messages = [
             {
                 "role": "assistant", 
-                "content": "Hi! I'm Aniket's AI assistant. Here to assist you with your query about my services and background!",
+                "content": "Hello! I'm Aniket's AI assistant. I'm here to help answer any questions about Aniket's professional background, qualifications, and experience.",
                 "timestamp": datetime.now()
             },
             {
@@ -933,8 +933,8 @@ def main():
     # Modern chat header
     st.markdown("""
     <div class="chat-header">
-        <h1>💼 Ask Aniket</h1>
-        <p>Portfolio Assistant - Here to help with questions about my background and experience</p>
+        <h1>💼 Ask Portfolio AI</h1>
+        <p>Aniket's AI Assistant</p>
     </div>
     """, unsafe_allow_html=True)
     
