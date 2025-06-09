@@ -853,16 +853,17 @@ def main():
     # Get avatar for display
     avatar_src = st.session_state.get("avatar_base64", "https://via.placeholder.com/40x40/667eea/ffffff?text=A")
     
-    # Custom CSS for modern chat interface with proper message display
+    # Custom CSS for full-width chat interface
     st.markdown("""
     <style>
-    /* Main container styling */
+    /* Main container styling - full width */
     .block-container {
         padding-top: 1rem;
         padding-bottom: 1rem;
-        max-width: 800px;
-        padding-left: 2rem;
-        padding-right: 2rem;
+        max-width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        width: 100% !important;
     }
     
     /* Hide Streamlit branding */
@@ -870,48 +871,96 @@ def main():
         visibility: hidden;
     }
     
+    /* Main app container */
+    .main .block-container {
+        max-width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
     /* Chat messages container */
     .chat-container {
         background: white;
-        padding: 0;
-        margin-top: 0;
-        width: 100%;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
     
-    /* Streamlit chat message styling */
+    /* Streamlit chat message styling - prevent cutoff */
     .stChatMessage {
         padding: 1rem !important;
         max-width: 100% !important;
         width: 100% !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
     }
     
     .stChatMessage > div {
         max-width: 100% !important;
         width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+    }
+    
+    /* Message content area */
+    .stChatMessage .stMarkdown {
+        max-width: calc(100% - 60px) !important;
+        width: calc(100% - 60px) !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        flex: 1 !important;
+        margin-left: 10px !important;
+    }
+    
+    /* Avatar styling */
+    .stChatMessage [data-testid="chatAvatarIcon-assistant"],
+    .stChatMessage [data-testid="chatAvatarIcon-user"] {
+        flex-shrink: 0 !important;
+        width: 40px !important;
+        height: 40px !important;
     }
     
     /* Chat input styling */
+    .stChatInput {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    
     .stChatInput > div > div > div {
         border-radius: 25px !important;
         border: 2px solid #667eea !important;
         background: white !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
     
     .stChatInput input {
         font-size: 16px !important;
         padding: 12px 20px !important;
+        width: 100% !important;
     }
     
-    /* Ensure messages don't get cut off */
-    .stChatMessage [data-testid="chatAvatarIcon-assistant"],
-    .stChatMessage [data-testid="chatAvatarIcon-user"] {
-        flex-shrink: 0;
-    }
-    
-    .stChatMessage .stMarkdown {
+    /* Custom message layout for avatar messages */
+    .custom-message {
+        display: flex !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+        padding: 12px 16px !important;
+        margin-bottom: 15px !important;
         max-width: 100% !important;
         width: 100% !important;
-        word-wrap: break-word;
+        box-sizing: border-box !important;
+    }
+    
+    .custom-message-content {
+        background: #f0f0f0 !important;
+        padding: 12px 16px !important;
+        border-radius: 18px !important;
+        flex: 1 !important;
+        max-width: calc(100% - 60px) !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
     }
     </style>
     """, unsafe_allow_html=True)
