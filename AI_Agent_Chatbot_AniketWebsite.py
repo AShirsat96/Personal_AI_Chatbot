@@ -853,18 +853,112 @@ def main():
     # Get avatar for display
     avatar_src = st.session_state.get("avatar_base64", "https://via.placeholder.com/40x40/667eea/ffffff?text=A")
     
-    # Simple header without HTML complexity
-    st.markdown("### 💼 Ask Aniket - Portfolio Assistant")
-    st.markdown("---")
+    # Custom CSS for modern chat interface - restored and simplified
+    st.markdown("""
+    <style>
+    /* Main container styling */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 1rem;
+        max-width: 600px;
+    }
     
-    # Display messages using Streamlit's native chat components
-    for message in st.session_state.messages:
-        if message["role"] == "assistant":
-            with st.chat_message("assistant", avatar="👨‍💼"):
-                st.write(message["content"])
-        else:
-            with st.chat_message("user"):
-                st.write(message["content"])
+    /* Hide Streamlit branding */
+    .stApp > footer {
+        visibility: hidden;
+    }
+    
+    /* Chat header styling */
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 15px 15px 0 0;
+        text-align: center;
+        margin-bottom: 0;
+    }
+    
+    .chat-header h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 600;
+    }
+    
+    .chat-header p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+        font-size: 14px;
+    }
+    
+    /* Chat messages container */
+    .chat-container {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 0 0 15px 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 0;
+        margin-top: 0;
+    }
+    
+    /* Streamlit chat message styling */
+    .stChatMessage {
+        padding: 1rem !important;
+    }
+    
+    /* Chat input styling */
+    .stChatInput > div > div > div {
+        border-radius: 25px !important;
+        border: 2px solid #667eea !important;
+        background: white !important;
+    }
+    
+    .stChatInput input {
+        font-size: 16px !important;
+        padding: 12px 20px !important;
+    }
+    
+    /* Footer message */
+    .chat-footer {
+        text-align: center;
+        font-size: 12px;
+        color: #888;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 0 0 15px 15px;
+        border-top: 1px solid #eee;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Modern chat header
+    st.markdown("""
+    <div class="chat-header">
+        <h1>💼 Ask Aniket</h1>
+        <p>Portfolio Assistant - Here to help with questions about my background and experience</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Chat container
+    with st.container():
+        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+        
+        # Display messages using Streamlit's native chat components
+        for message in st.session_state.messages:
+            if message["role"] == "assistant":
+                with st.chat_message("assistant", avatar="👨‍💼"):
+                    st.write(message["content"])
+            else:
+                with st.chat_message("user"):
+                    st.write(message["content"])
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Footer
+    st.markdown("""
+    <div class="chat-footer">
+        💡 This chat is powered by AI, designed to assist you with information about Aniket's background and services.
+    </div>
+    """, unsafe_allow_html=True)
     
     # Chat input
     if st.session_state.asking_for_name:
