@@ -954,41 +954,8 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    # Widget-style header bar
-    avatar_for_header = st.session_state.avatar_base64 if "avatar_base64" in st.session_state and st.session_state.avatar_base64 else "👨‍💼"
-    
-    if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-        st.markdown(f"""
-        <div class="widget-header">
-            <div class="widget-title">
-                <img src="{st.session_state.avatar_base64}" class="widget-avatar" alt="Aniket">
-                Ask Aniket
-            </div>
-            <div class="widget-controls">
-                <span>⤢</span>
-                <span>−</span>
-                <span>✕</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-        <div class="widget-header">
-            <div class="widget-title">
-                <span style="font-size: 20px;">👨‍💼</span>
-                Ask Aniket
-            </div>
-            <div class="widget-controls">
-                <span>⤢</span>
-                <span>−</span>
-                <span>✕</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Chat container
+    # Chat container - start directly with messages
     with st.container():
-        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         
         # Display messages using Streamlit's native chat components
         for message in st.session_state.messages:
