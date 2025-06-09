@@ -314,38 +314,139 @@ def main():
     st.markdown("""
     <style>
         .stApp > header {visibility: hidden;}
-        .stApp > .main > div:nth-child(1) {padding-top: 1rem;}
+        .stApp > .main > div:nth-child(1) {padding-top: 0rem;}
         .stDeployButton {display: none;}
         .stDecoration {display: none;}
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
-        .stApp > .main {max-width: 600px;}
+        .stApp > .main {max-width: 100%; padding: 0;}
+        .stApp {background: #f5f7fa;}
         
-        /* Custom chat styling */
+        /* Modern chat container */
+        .chat-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+            max-width: 400px;
+            margin: 20px auto;
+            border: 1px solid #e1e8ed;
+        }
+        
+        /* Chat header with avatar and title */
         .chat-header {
-            text-align: center;
-            padding: 15px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-radius: 10px;
-            margin-bottom: 20px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
-        .user-info-form {
-            background: #f8f9fa;
+        
+        .chat-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.3);
+            object-fit: cover;
+        }
+        
+        .chat-title {
+            flex: 1;
+        }
+        
+        .chat-title h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .chat-subtitle {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        /* Message styling */
+        .message-container {
+            padding: 15px 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .assistant-message {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+        
+        .assistant-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        
+        .message-bubble {
+            background: #f1f3f5;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 280px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .user-message {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 15px;
+        }
+        
+        .user-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 280px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        /* Input styling */
+        .chat-input-container {
+            padding: 15px 20px;
+            border-top: 1px solid #e1e8ed;
+            background: #fafbfc;
+        }
+        
+        .user-info-prompt {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
             padding: 15px;
             border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 4px solid #667eea;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        /* Hide default streamlit chat elements */
+        .stChatMessage {display: none;}
+        .stChatInput {border-radius: 20px;}
+        
+        /* Scrollbar styling */
+        .message-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        .message-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .message-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 2px;
         }
     </style>
-    """, unsafe_allow_html=True)
-    
-    # Chat header
-    st.markdown("""
-    <div class="chat-header">
-        <h3>💬 Chat with Aniket's AI Assistant</h3>
-        <p style="margin: 0; opacity: 0.9;">Ask about qualifications, experience, and skills</p>
-    </div>
     """, unsafe_allow_html=True)
     
     # Load API Key
@@ -395,41 +496,83 @@ def main():
         ]
         st.session_state.asking_for_name = True
     
-    # User info collection form
+    # Main chat container
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    
+    # Chat header with avatar and title
+    avatar_src = st.session_state.get('avatar_base64', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==')
+    
+    st.markdown(f"""
+    <div class="chat-header">
+        <img src="{avatar_src}" class="chat-avatar" alt="Aniket's Avatar">
+        <div class="chat-title">
+            <h3>Aniket's AI Assistant</h3>
+            <p class="chat-subtitle">Ask about qualifications, experience, and skills</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Messages container
+    st.markdown('<div class="message-container">', unsafe_allow_html=True)
+    
+    # User info collection prompt
     if not st.session_state.user_info_collected:
         if st.session_state.asking_for_name:
             st.markdown("""
-            <div class="user-info-form">
-                <h4>👋 Welcome! Please share your name to begin</h4>
+            <div class="user-info-prompt">
+                👋 <strong>Welcome!</strong> Please share your name to get started
             </div>
             """, unsafe_allow_html=True)
         elif st.session_state.asking_for_email:
             st.markdown(f"""
-            <div class="user-info-form">
-                <h4>📧 Nice to meet you, {st.session_state.user_name}!</h4>
-                <p>Could you also share your email address?</p>
+            <div class="user-info-prompt">
+                📧 <strong>Nice to meet you, {st.session_state.user_name}!</strong><br>
+                Could you also share your email address?
             </div>
             """, unsafe_allow_html=True)
     
-    # Display messages
+    # Display messages with custom styling
     for message in st.session_state.messages:
         if message["role"] == "assistant":
             if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
                 st.markdown(f"""
-                <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                    <img src="{st.session_state.avatar_base64}" 
-                         style="width: 35px; height: 35px; border-radius: 50%; margin-right: 10px; object-fit: cover;">
-                    <div style="flex-grow: 1; background: #f0f2f6; padding: 10px; border-radius: 10px;">
-                        {message["content"]}
-                    </div>
+                <div class="assistant-message">
+                    <img src="{st.session_state.avatar_base64}" class="assistant-avatar" alt="Assistant">
+                    <div class="message-bubble">{message["content"]}</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                with st.chat_message("assistant", avatar="👨‍💼"):
-                    st.markdown(message["content"])
+                st.markdown(f"""
+                <div class="assistant-message">
+                    <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
+                    <div class="message-bubble">{message["content"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            with st.chat_message("user"):
-                st.markdown(message["content"])
+            st.markdown(f"""
+            <div class="user-message">
+                <div class="user-bubble">{message["content"]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
+    
+    # Close chat container before input
+    st.markdown('</div>', unsafe_allow_html=True)px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
+                    <div class="message-bubble">{message["content"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="user-message">
+                <div class="user-bubble">{message["content"]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
+    
+    # Close chat container before input
+    st.markdown('</div>', unsafe_allow_html=True)
     
     # Chat input
     if st.session_state.asking_for_name:
@@ -442,8 +585,13 @@ def main():
     if prompt := st.chat_input(placeholder):
         # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        
+        # Display user message immediately with custom styling
+        st.markdown(f"""
+        <div class="user-message">
+            <div class="user-bubble">{prompt}</div>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Handle user info collection
         if st.session_state.asking_for_name:
@@ -455,24 +603,30 @@ def main():
                 response = f"Thank you, {st.session_state.user_name}! Could you please share your email address?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 
+                # Display response with custom styling
                 if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
                     st.markdown(f"""
-                    <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                        <img src="{st.session_state.avatar_base64}" 
-                             style="width: 35px; height: 35px; border-radius: 50%; margin-right: 10px; object-fit: cover;">
-                        <div style="flex-grow: 1; background: #f0f2f6; padding: 10px; border-radius: 10px;">
-                            {response}
-                        </div>
+                    <div class="assistant-message">
+                        <img src="{st.session_state.avatar_base64}" class="assistant-avatar" alt="Assistant">
+                        <div class="message-bubble">{response}</div>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
-                    with st.chat_message("assistant", avatar="👨‍💼"):
-                        st.markdown(response)
+                    st.markdown(f"""
+                    <div class="assistant-message">
+                        <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
+                        <div class="message-bubble">{response}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
             else:
                 response = "I didn't catch that. Could you please tell me your name?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                with st.chat_message("assistant", avatar="👨‍💼"):
-                    st.markdown(response)
+                st.markdown(f"""
+                <div class="assistant-message">
+                    <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
+                    <div class="message-bubble">{response}</div>
+                </div>
+                """, unsafe_allow_html=True)
         
         elif st.session_state.asking_for_email:
             if is_valid_email(prompt.strip()):
@@ -491,51 +645,61 @@ What would you like to know?"""
                 
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 
+                # Display response with custom styling
                 if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
                     st.markdown(f"""
-                    <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                        <img src="{st.session_state.avatar_base64}" 
-                             style="width: 35px; height: 35px; border-radius: 50%; margin-right: 10px; object-fit: cover;">
-                        <div style="flex-grow: 1; background: #f0f2f6; padding: 10px; border-radius: 10px;">
-                            {response}
-                        </div>
+                    <div class="assistant-message">
+                        <img src="{st.session_state.avatar_base64}" class="assistant-avatar" alt="Assistant">
+                        <div class="message-bubble">{response}</div>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
-                    with st.chat_message("assistant", avatar="👨‍💼"):
-                        st.markdown(response)
+                    st.markdown(f"""
+                    <div class="assistant-message">
+                        <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
+                        <div class="message-bubble">{response}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
             else:
                 response = "That doesn't look like a valid email. Please enter a valid email address (e.g., john@company.com)."
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                with st.chat_message("assistant", avatar="👨‍💼"):
-                    st.markdown(response)
+                st.markdown(f"""
+                <div class="assistant-message">
+                    <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
+                    <div class="message-bubble">{response}</div>
+                </div>
+                """, unsafe_allow_html=True)
         
         else:
             # Normal chat
             with st.spinner("Thinking..."):
                 response = st.session_state.chatbot.generate_expert_response(prompt)
             
+            # Display response with custom styling
             if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
                 st.markdown(f"""
-                <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                    <img src="{st.session_state.avatar_base64}" 
-                         style="width: 35px; height: 35px; border-radius: 50%; margin-right: 10px; object-fit: cover;">
-                    <div style="flex-grow: 1; background: #f0f2f6; padding: 10px; border-radius: 10px;">
-                        {response}
-                    </div>
+                <div class="assistant-message">
+                    <img src="{st.session_state.avatar_base64}" class="assistant-avatar" alt="Assistant">
+                    <div class="message-bubble">{response}</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                with st.chat_message("assistant", avatar="👨‍💼"):
-                    st.markdown(response)
+                st.markdown(f"""
+                <div class="assistant-message">
+                    <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
+                    <div class="message-bubble">{response}</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             st.session_state.messages.append({"role": "assistant", "content": response})
+        
+        # Auto-refresh to show the new messages
+        st.rerun()
     
-    # Footer
-    st.markdown("---")
+    # Subtle footer
     st.markdown("""
-    <div style="text-align: center; color: #888; font-size: 12px;">
-        Professional Portfolio Assistant for Aniket Shirsat
+    <div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 20px; padding: 10px;">
+        Aniket Shirsat - Portfolio Assistant
     </div>
     """, unsafe_allow_html=True)
 
