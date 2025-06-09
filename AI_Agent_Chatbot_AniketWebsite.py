@@ -953,13 +953,6 @@ def main():
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Footer
-    st.markdown("""
-    <div class="chat-footer">
-        💡 This chat is powered by AI, designed to assist you with information about Aniket's background and services.
-    </div>
-    """, unsafe_allow_html=True)
-    
     # Chat input
     if st.session_state.asking_for_name:
         placeholder_text = "Please enter your name..."
