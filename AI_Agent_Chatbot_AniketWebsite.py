@@ -864,7 +864,7 @@ def main():
             </div>
         </div>
         
-        <div class="chat-messages" id="chat-messages">
+        <div class="chat-messages">
     """, unsafe_allow_html=True)
     
     # Display messages
@@ -1020,88 +1020,6 @@ def main():
         
         # Rerun to show new messages
         st.rerun()
-    
-    # Admin sidebar (hidden by default)
-    with st.sidebar:
-        st.header("⚙️ Admin Panel")
-        
-        # Resume Upload Section
-        st.markdown("### 📄 Resume Management")
-        
-        # Show current resume status
-        if hasattr(st.session_state.chatbot.knowledge_base, 'resume_content') and st.session_state.chatbot.knowledge_base.resume_content:
-            resume_info = st.session_state.chatbot.knowledge_base.resume_content
-            st.success(f"✅ Resume: {resume_info.filename}")
-            
-            if st.button("🗑️ Remove Resume"):
-                if st.session_state.chatbot.knowledge_base.delete_saved_resume():
-                    st.success("Resume removed!")
-                    st.rerun()
-        else:
-            st.info("📝 No resume loaded")
-        
-        # Upload new resume
-        resume_file = st.file_uploader(
-            "Upload Resume",
-            type=['pdf', 'docx', 'txt'],
-            help="Upload Aniket's resume"
-        )
-        
-        if resume_file and st.button("Process Resume"):
-            process_resume_file(resume_file)
-        
-        # Avatar Upload Section
-        st.markdown("### 🖼️ Avatar Management")
-        
-        if "avatar_base64" in st.session_state:
-            st.success("✅ Avatar loaded")
-            if st.button("🗑️ Remove Avatar"):
-                if delete_saved_avatar():
-                    if "avatar_base64" in st.session_state:
-                        del st.session_state.avatar_base64
-                    st.success("Avatar removed!")
-                    st.rerun()
-        else:
-            st.info("📷 No avatar loaded")
-        
-        avatar_file = st.file_uploader(
-            "Upload Avatar",
-            type=['png', 'jpg', 'jpeg']
-        )
-        
-        if avatar_file:
-            new_avatar = get_image_base64(avatar_file)
-            if new_avatar:
-                st.session_state.avatar_base64 = new_avatar
-                save_avatar(new_avatar)
-                st.success("✅ Avatar uploaded!")
-                st.rerun()
-        
-        # Website scraping
-        st.markdown("### 🌐 Website Data")
-        website_url = st.text_input("Website URL", value="https://aniketdshirsat.com/")
-        max_pages = st.slider("Pages to analyze", 1, 10, 5)
-        
-        if st.button("Update Knowledge Base"):
-            scrape_website(website_url, max_pages)
-        
-        # User data analytics
-        st.markdown("### 👥 Analytics")
-        user_data = load_user_data()
-        
-        if not user_data.empty:
-            st.metric("Total Visitors", len(user_data))
-            st.metric("Unique Visitors", user_data['email'].nunique())
-            
-            # Download data
-            csv_data = export_user_data()
-            if csv_data:
-                st.download_button(
-                    "📥 Download Data",
-                    csv_data,
-                    f"visitors_{datetime.now().strftime('%Y%m%d')}.csv",
-                    "text/csv"
-                )
 
 def process_resume_file(uploaded_file):
     """Process uploaded resume file"""
