@@ -1,209 +1,215 @@
 import os
-import time
-import requests
 import streamlit as st
-from typing import List, Dict, Optional
-from urllib.parse import urljoin, urlparse
-from dataclasses import dataclass, asdict
 from datetime import datetime
-import json
-import base64
-from io import BytesIO
-from PIL import Image
-import PyPDF2
-import docx
-import pickle
-
-# Core libraries
 import pandas as pd
-from bs4 import BeautifulSoup
-
-# OpenAI for chat
-import openai
-from openai import OpenAI
 
 # Environment setup
 from dotenv import load_dotenv
 load_dotenv()
 
-# Create data directory for persistent storage
-DATA_DIR = "chatbot_data"
-RESUME_FILE = os.path.join(DATA_DIR, "resume_content.pkl")
-AVATAR_FILE = os.path.join(DATA_DIR, "avatar.pkl")
-USER_DATA_FILE = os.path.join(DATA_DIR, "user_interactions.csv")
-
-# Ensure data directory exists
-os.makedirs(DATA_DIR, exist_ok=True)
-
-@dataclass
-class WebsiteContent:
-    """Data class for storing scraped website content"""
-    url: str
-    title: str
-    content: str
-    metadata: Dict
-    timestamp: datetime
-
-@dataclass
-class ResumeContent:
-    """Data class for storing resume content"""
-    filename: str
-    content: str
-    file_type: str
-    metadata: Dict
-    timestamp: datetime
-
-class SimpleWebsiteScraper:
-    """Simplified website scraper using only requests and BeautifulSoup"""
+def main():
+    """Admin Dashboard - Debug Version"""
+    st.set_page_config(
+        page_title="Aniket Shirsat - Admin Dashboard",
+        page_icon="⚙️",
+        layout="wide"
+    )
     
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    # Custom CSS for admin dashboard
+    st.markdown("""
+    <style>
+    .admin-header {
+        text-align: center; 
+        padding: 25px; 
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); 
+        color: white; 
+        border-radius: 15px; 
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .status-card {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #2c3e50;
+        margin: 10px 0;
+    }
+    .error-card {
+        background: #fff5f5;
+        border: 2px solid #feb2b2;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 10px 0;
+    }
+    .success-card {
+        background: #f0fff4;
+        border: 2px solid #9ae6b4;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 10px 0;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Admin header
+    st.markdown("""
+    <div class="admin-header">
+        <h1>⚙️ Aniket Shirsat Portfolio - Admin Dashboard</h1>
+        <p style="margin: 0; opacity: 0.9;">Management & Analytics Interface (Debug Mode)</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Check environment variables
+    st.header("🔍 System Status Check")
+    
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    
+    # API Key Status
+    if openai_api_key:
+        masked_key = openai_api_key[:7] + "..." + openai_api_key[-4:]
+        st.markdown(f"""
+        <div class="success-card">
+            <h3>✅ OpenAI API Key</h3>
+            <p>Status: <strong>Configured</strong></p>
+            <p>Key: <code>{masked_key}</code></p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="error-card">
+            <h3>❌ OpenAI API Key Missing</h3>
+            <p>The OpenAI API key is not configured.</p>
+            <p><strong>To fix:</strong></p>
+            <ol>
+                <li>Click "Manage app" (bottom right)</li>
+                <li>Go to Settings → Secrets</li>
+                <li>Add: <code>OPENAI_API_KEY = "your-key-here"</code></li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Admin Password Status
+    if admin_password:
+        st.markdown("""
+        <div class="success-card">
+            <h3>✅ Admin Password</h3>
+            <p>Status: <strong>Configured</strong></p>
+            <p>Ready for authentication</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="status-card">
+            <h3>⚠️ Admin Password</h3>
+            <p>Using default password: <code>admin123</code></p>
+            <p>Recommend setting custom password in secrets:</p>
+            <p><code>ADMIN_PASSWORD = "your-secure-password"</code></p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Authentication Section
+    st.header("🔐 Authentication")
+    
+    if "admin_authenticated" not in st.session_state:
+        st.session_state.admin_authenticated = False
+    
+    if not st.session_state.admin_authenticated:
+        st.markdown("""
+        <div class="status-card">
+            <h3>🔑 Login Required</h3>
+            <p>Enter the admin password to access the dashboard.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        admin_password_input = st.text_input("Enter Admin Password:", type="password")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔓 Login", type="primary"):
+                correct_password = admin_password if admin_password else "admin123"
+                
+                if admin_password_input == correct_password:
+                    st.session_state.admin_authenticated = True
+                    st.success("✅ Authentication successful!")
+                    st.rerun()
+                else:
+                    st.error("❌ Incorrect password. Please try again.")
+        
+        with col2:
+            if st.button("🔍 Test Default Password"):
+                st.info("Default password is: **admin123**")
+        
+        # Show configuration instructions
+        st.markdown("""
+        <div class="status-card">
+            <h3>📋 Configuration Checklist</h3>
+            <p>Make sure you have configured:</p>
+            <ul>
+                <li>✅ OPENAI_API_KEY in app secrets</li>
+                <li>✅ ADMIN_PASSWORD in app secrets (optional, defaults to 'admin123')</li>
+                <li>✅ Both chat widget and admin dashboard deployed separately</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    else:
+        # Show authenticated dashboard preview
+        st.success("🎉 Successfully authenticated!")
+        
+        # Logout button
+        if st.button("🚪 Logout"):
+            st.session_state.admin_authenticated = False
+            st.rerun()
+        
+        st.markdown("""
+        <div class="success-card">
+            <h3>🎛️ Admin Dashboard Features</h3>
+            <p>Once fully configured, this dashboard provides:</p>
+            <ul>
+                <li>📊 <strong>Analytics Dashboard</strong> - Visitor tracking and metrics</li>
+                <li>📄 <strong>Resume Management</strong> - Upload and manage resume content</li>
+                <li>🖼️ <strong>Avatar Management</strong> - Custom avatar upload</li>
+                <li>🌐 <strong>Website Scraping</strong> - Portfolio content management</li>
+                <li>⚙️ <strong>System Settings</strong> - Configuration and maintenance</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Simple analytics preview
+        st.header("📊 Analytics Preview")
+        
+        # Create sample data for demonstration
+        sample_data = pd.DataFrame({
+            'Date': pd.date_range('2024-01-01', periods=10, freq='D'),
+            'Visitors': [5, 8, 12, 6, 15, 20, 18, 25, 22, 30]
         })
         
-    def extract_links(self, base_url: str, soup: BeautifulSoup) -> List[str]:
-        """Extract all internal links from a page"""
-        links = set()
-        domain = urlparse(base_url).netloc
+        col1, col2, col3 = st.columns(3)
         
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            full_url = urljoin(base_url, href)
-            
-            # Only include internal links
-            if urlparse(full_url).netloc == domain:
-                links.add(full_url)
-                
-        return list(links)
+        with col1:
+            st.metric("Total Visitors", "165", "↗️ +12%")
+        
+        with col2:
+            st.metric("Unique Visitors", "128", "↗️ +8%")
+        
+        with col3:
+            st.metric("Return Visitors", "37", "↗️ +23%")
+        
+        st.line_chart(sample_data.set_index('Date'))
+        
+        st.info("💡 This is a preview. Real analytics will show actual visitor data once the chat widget starts collecting information.")
     
-    def clean_text(self, text: str) -> str:
-        """Clean and normalize extracted text"""
-        text = ' '.join(text.split())
-        return text.strip()
-    
-    def scrape_page(self, url: str) -> Optional[WebsiteContent]:
-        """Scrape a single page and extract content"""
-        try:
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Remove script and style elements
-            for script in soup(["script", "style", "nav", "footer", "header"]):
-                script.decompose()
-            
-            # Extract title
-            title = soup.find('title')
-            title_text = title.get_text().strip() if title else url
-            
-            # Extract main content
-            content_selectors = [
-                'main', 'article', '.content', '#content', 
-                '.post', '.entry-content', 'section'
-            ]
-            
-            content = ""
-            for selector in content_selectors:
-                elements = soup.select(selector)
-                if elements:
-                    content = ' '.join([elem.get_text() for elem in elements])
-                    break
-            
-            # If no specific content found, get body text
-            if not content:
-                body = soup.find('body')
-                if body:
-                    content = body.get_text()
-            
-            content = self.clean_text(content)
-            
-            # Extract metadata
-            metadata = {
-                'word_count': len(content.split()),
-                'scraped_at': datetime.now().isoformat(),
-            }
-            
-            # Extract meta description
-            meta_desc = soup.find('meta', attrs={'name': 'description'})
-            if meta_desc:
-                metadata['description'] = meta_desc.get('content', '')
-            
-            return WebsiteContent(
-                url=url,
-                title=title_text,
-                content=content,
-                metadata=metadata,
-                timestamp=datetime.now()
-            )
-            
-        except Exception as e:
-            st.error(f"Error scraping {url}: {str(e)}")
-            return None
-    
-    def scrape_website(self, base_url: str, max_pages: int = 10) -> List[WebsiteContent]:
-        """Scrape an entire website starting from base URL"""
-        scraped_content = []
-        visited_urls = set()
-        urls_to_visit = [base_url]
-        
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        while urls_to_visit and len(scraped_content) < max_pages:
-            current_url = urls_to_visit.pop(0)
-            
-            if current_url in visited_urls:
-                continue
-                
-            visited_urls.add(current_url)
-            
-            status_text.text(f"Analyzing: {current_url}")
-            progress = len(scraped_content) / max_pages
-            progress_bar.progress(min(progress, 1.0))
-            
-            content = self.scrape_page(current_url)
-            
-            if content and len(content.content) > 100:
-                scraped_content.append(content)
-                
-                # Find more links to scrape
-                if len(scraped_content) < max_pages:
-                    try:
-                        response = self.session.get(current_url, timeout=5)
-                        soup = BeautifulSoup(response.text, 'html.parser')
-                        new_links = self.extract_links(base_url, soup)
-                        
-                        for link in new_links:
-                            if link not in visited_urls and link not in urls_to_visit:
-                                urls_to_visit.append(link)
-                                
-                    except Exception as e:
-                        st.warning(f"Could not extract links from {current_url}")
-            
-            time.sleep(1)
-        
-        progress_bar.progress(1.0)
-        status_text.text(f"Analysis complete! Found {len(scraped_content)} pages.")
-        
-        return scraped_content
+    # Footer with deployment info
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; color: #666; font-size: 14px; padding: 20px;">
+        <p><strong>Deployment Information:</strong></p>
+        <p>Admin Dashboard: personalaichatbot-lqmfb7ethymakrhablh2o.streamlit.app</p>
+        <p>Chat Widget: (deploy separately for embedding)</p>
+        <p>Status: Debug Mode - Configure secrets to enable full functionality</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-class ResumeProcessor:
-    """Process and extract content from resume files"""
-    
-    @staticmethod
-    def extract_text_from_pdf(file_bytes: bytes) -> str:
-        """Extract text from PDF file"""
-        try:
-            pdf_file = BytesIO(file_bytes)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            
-            text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
-            
-            return text.strip()
-        except Exception as e:
-            st.error(f"Error reading PDF: {str(e)}")
-            return ""
+if __name__ == "__main__":
+    main()
