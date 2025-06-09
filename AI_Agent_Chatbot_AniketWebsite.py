@@ -986,14 +986,6 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     
-    # Modern chat header
-    st.markdown("""
-    <div class="chat-header">
-        <h1>💼 Ask Portfolio AI</h1>
-        <p>Aniket's AI Assistant</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
     # Chat container
     with st.container():
         st.markdown('<div class="chat-container">', unsafe_allow_html=True)
