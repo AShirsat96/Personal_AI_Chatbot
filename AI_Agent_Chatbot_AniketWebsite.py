@@ -853,14 +853,16 @@ def main():
     # Get avatar for display
     avatar_src = st.session_state.get("avatar_base64", "https://via.placeholder.com/40x40/667eea/ffffff?text=A")
     
-    # Custom CSS for modern chat interface with widget-style header
+    # Custom CSS for modern chat interface with proper message display
     st.markdown("""
     <style>
     /* Main container styling */
     .block-container {
         padding-top: 1rem;
         padding-bottom: 1rem;
-        max-width: 600px;
+        max-width: 800px;
+        padding-left: 2rem;
+        padding-right: 2rem;
     }
     
     /* Hide Streamlit branding */
@@ -868,76 +870,24 @@ def main():
         visibility: hidden;
     }
     
-    /* Widget-style header bar */
-    .widget-header {
-        background: #f8f9fa;
-        border: 1px solid #e0e0e0;
-        border-radius: 10px 10px 0 0;
-        padding: 12px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .widget-title {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 600;
-        font-size: 16px;
-        color: #333;
-    }
-    
-    .widget-avatar {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-    
-    .widget-controls {
-        display: flex;
-        gap: 10px;
-        color: #666;
-    }
-    
-    /* Chat header styling */
-    .chat-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 20px;
-        border-radius: 0;
-        text-align: center;
-        margin-bottom: 0;
-    }
-    
-    .chat-header h1 {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 600;
-    }
-    
-    .chat-header p {
-        margin: 5px 0 0 0;
-        opacity: 0.9;
-        font-size: 14px;
-    }
-    
     /* Chat messages container */
     .chat-container {
         background: white;
-        border: 1px solid #e0e0e0;
-        border-top: none;
-        border-radius: 0 0 10px 10px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         padding: 0;
         margin-top: 0;
+        width: 100%;
     }
     
     /* Streamlit chat message styling */
     .stChatMessage {
         padding: 1rem !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    
+    .stChatMessage > div {
+        max-width: 100% !important;
+        width: 100% !important;
     }
     
     /* Chat input styling */
@@ -950,6 +900,18 @@ def main():
     .stChatInput input {
         font-size: 16px !important;
         padding: 12px 20px !important;
+    }
+    
+    /* Ensure messages don't get cut off */
+    .stChatMessage [data-testid="chatAvatarIcon-assistant"],
+    .stChatMessage [data-testid="chatAvatarIcon-user"] {
+        flex-shrink: 0;
+    }
+    
+    .stChatMessage .stMarkdown {
+        max-width: 100% !important;
+        width: 100% !important;
+        word-wrap: break-word;
     }
     </style>
     """, unsafe_allow_html=True)
