@@ -426,7 +426,7 @@ def get_image_base64(image_file):
     try:
         img = Image.open(image_file)
         # Resize image to reasonable size for avatar
-        img = img.resize((100, 100), Image.Resampling.LANCZOS)
+        img = img.resize((50, 50), Image.Resampling.LANCZOS)
         buffered = BytesIO()
         img.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
@@ -584,7 +584,7 @@ class AniketChatbotAI:
         RESUME INFORMATION:
         You have access to Aniket's detailed resume content. Use this information to provide specific details about his work experience, education, skills, projects, and achievements. When answering questions about his background, prioritize information from the resume as it contains the most current and detailed information."""
         
-        return f"""You are a knowledgeable professional assistant providing information about Aniket Shirsat's qualifications and experience. Respond naturally and conversationally, as if you're a well-informed colleague sharing insights about his background.
+        return f"""You are Aniket's AI assistant, providing information about Aniket Shirsat's qualifications and experience. Respond naturally and conversationally, as if you're representing him professionally.
         
         ABOUT ANIKET SHIRSAT:
         • Currently: {self.aniket_profile['current_role']} (GPA: {self.aniket_profile['gpa']})
@@ -683,613 +683,141 @@ class AniketChatbotAI:
             His expertise spans machine learning, computer vision, and NLP, with proven results including 90% accuracy in cultural ambiguity detection and $1M in annual savings through vessel fuel optimization models.
             
             For more detailed information or direct contact, please reach out through his professional channels. (Technical note: {str(e)})"""
-    
-    def get_suggested_questions(self) -> List[str]:
-        """Get suggested questions for recruiters and hiring managers"""
-        base_questions = [
-            "What is Aniket's educational background?",
-            "What programming languages does he know?",
-            "Tell me about his work experience",
-            "What are his key achievements?",
-            "What machine learning projects has he worked on?",
-            "Does he have leadership experience?",
-            "What cloud platforms is he familiar with?",
-            "What is his GPA and academic performance?",
-            "What research has he conducted?",
-            "Is he available for full-time opportunities?"
-        ]
-        
-        # Add resume-specific questions if resume is uploaded
-        if self.knowledge_base.resume_content:
-            resume_questions = [
-                "Walk me through his resume",
-                "What specific skills are listed on his resume?",
-                "What companies has he worked for?",
-                "What are his most recent achievements?",
-                "Tell me about his certifications"
-            ]
-            return base_questions + resume_questions
-        
-        return base_questions
 
 def main():
     """Main Streamlit application - Aniket Shirsat's Portfolio Assistant"""
     st.set_page_config(
-        page_title="Aniket Shirsat - Portfolio Assistant",
+        page_title="Ask Aniket",
         page_icon="👨‍💼",
-        layout="wide"
+        layout="centered",
+        initial_sidebar_state="collapsed"
     )
     
-    # Custom CSS for enhanced styling
+    # Custom CSS for chat widget-style interface
     st.markdown("""
     <style>
-    .main-header {
-        text-align: center; 
-        padding: 25px; 
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-        color: white; 
-        border-radius: 15px; 
-        margin-bottom: 30px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    /* Hide Streamlit elements */
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        max-width: 500px;
     }
-    .assistant-badge {
-        background: rgba(255,255,255,0.1);
-        padding: 8px 16px;
+    
+    /* Chat widget styling */
+    .chat-widget {
+        background: white;
         border-radius: 20px;
-        display: inline-block;
-        margin-top: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        overflow: hidden;
+        max-width: 450px;
+        margin: 0 auto;
+        border: 1px solid #e0e0e0;
     }
-    .achievement-card {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 4px solid #667eea;
-        margin: 10px 0;
+    
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
-    .upload-section {
-        background: #f8f9fa;
+    
+    .chat-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.3);
+        object-fit: cover;
+    }
+    
+    .chat-info h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+    }
+    
+    .chat-info p {
+        margin: 0;
+        font-size: 13px;
+        opacity: 0.9;
+    }
+    
+    .chat-messages {
+        height: 400px;
+        overflow-y: auto;
         padding: 20px;
-        border-radius: 10px;
-        border: 2px dashed #667eea;
-        margin: 15px 0;
+        background: #f8f9fa;
+    }
+    
+    .message {
+        margin-bottom: 15px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .message.user {
+        flex-direction: row-reverse;
+    }
+    
+    .message-avatar {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+    
+    .message-content {
+        background: white;
+        padding: 12px 16px;
+        border-radius: 18px;
+        max-width: 280px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    
+    .message.user .message-content {
+        background: #667eea;
+        color: white;
+    }
+    
+    .message-time {
+        font-size: 11px;
+        color: #888;
+        margin-top: 4px;
+        text-align: right;
+    }
+    
+    .chat-input-area {
+        padding: 15px 20px;
+        background: white;
+        border-top: 1px solid #eee;
+    }
+    
+    .powered-by {
+        text-align: center;
+        font-size: 11px;
+        color: #888;
+        padding: 10px;
+        background: #f5f5f5;
+        border-top: 1px solid #eee;
+    }
+    
+    /* Hide Streamlit footer */
+    .stApp > footer {
+        visibility: hidden;
+    }
+    
+    /* Streamlit input styling */
+    .stChatInput > div > div > div {
+        border-radius: 20px !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    .stChatInput input {
+        font-size: 14px !important;
     }
     </style>
-    """, unsafe_allow_html=True)
-    
-    # Custom header for the assistant
-    st.markdown("""
-    <div class="main-header">
-        <h1>👨‍💼 Aniket Shirsat Portfolio Assistant</h1>
-        <div class="assistant-badge">
-            Professional Information & Career Insights
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Sidebar for configuration
-    with st.sidebar:
-        st.header("⚙️ Configuration")
-        
-        # Load API Key from environment variable
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        
-        if openai_api_key:
-            st.success("✅ System Ready")
-            # Show partial key for verification (security)
-            masked_key = openai_api_key[:7] + "..." + openai_api_key[-4:]
-            st.info(f"🔑 API Key: {masked_key}")
-        else:
-            st.error("❌ API Configuration Missing")
-            st.markdown("""
-            **Setup Instructions:**
-            1. Create a `.env` file in the project folder
-            2. Add your API key:
-               ```
-               OPENAI_API_KEY=your-key-here
-               ```
-            3. Restart the application
-            """)
-            
-            # Fallback: Allow manual entry if env var not found
-            openai_api_key = st.text_input(
-                "Or enter API key manually:",
-                type="password",
-                help="Temporary fallback option"
-            )
-        
-        # Avatar Upload Section
-        st.markdown("### 🖼️ Custom Avatar")
-        
-        # Load saved avatar on startup
-        if "avatar_base64" not in st.session_state:
-            saved_avatar = load_saved_avatar()
-            if saved_avatar:
-                st.session_state.avatar_base64 = saved_avatar
-        
-        avatar_file = st.file_uploader(
-            "Upload Avatar Image",
-            type=['png', 'jpg', 'jpeg'],
-            help="Upload a professional photo to use as the assistant avatar"
-        )
-        
-        # Show current avatar status
-        if "avatar_base64" in st.session_state:
-            st.success("✅ Avatar loaded and saved permanently!")
-            # Show current avatar preview
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.markdown(f'<img src="{st.session_state.avatar_base64}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;">', unsafe_allow_html=True)
-            with col2:
-                if st.button("🗑️ Remove Avatar", key="remove_avatar"):
-                    if delete_saved_avatar():
-                        if "avatar_base64" in st.session_state:
-                            del st.session_state.avatar_base64
-                        st.success("Avatar removed successfully!")
-                        st.rerun()
-        
-        if avatar_file:
-            new_avatar = get_image_base64(avatar_file)
-            if new_avatar:
-                st.session_state.avatar_base64 = new_avatar
-                if save_avatar(new_avatar):
-                    st.success("✅ Avatar uploaded and saved permanently!")
-                else:
-                    st.warning("Avatar uploaded but could not be saved permanently")
-                st.rerun()
-        
-        # Resume Upload Section
-        st.markdown("### 📄 Resume Management")
-        
-        # Show current resume status first
-        resume_loaded = ("chatbot" in st.session_state and 
-                        hasattr(st.session_state.chatbot.knowledge_base, 'resume_content') and
-                        st.session_state.chatbot.knowledge_base.resume_content is not None)
-        
-        if resume_loaded:
-            resume_info = st.session_state.chatbot.knowledge_base.resume_content
-            st.success(f"✅ Resume saved permanently: {resume_info.filename}")
-            
-            # Resume info in columns
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Words", resume_info.metadata['word_count'])
-            with col2:
-                st.metric("Size", f"{resume_info.metadata['file_size'] / 1024:.1f} KB")
-            with col3:
-                uploaded_date = datetime.fromisoformat(resume_info.metadata['processed_at']).strftime("%m/%d/%y")
-                st.metric("Uploaded", uploaded_date)
-            
-            # Option to remove current resume
-            if st.button("🗑️ Remove Current Resume", key="remove_resume"):
-                if st.session_state.chatbot.knowledge_base.delete_saved_resume():
-                    st.success("Resume removed successfully!")
-                    st.rerun()
-                else:
-                    st.error("Failed to remove resume")
-        else:
-            st.info("📝 No resume currently loaded")
-        
-        # Upload new resume
-        resume_file = st.file_uploader(
-            "Upload New Resume" if resume_loaded else "Upload Resume",
-            type=['pdf', 'docx', 'txt'],
-            help="Upload Aniket's resume for detailed Q&A"
-        )
-        
-        if resume_file:
-            if st.button("📝 Process Resume", type="primary"):
-                process_resume_file(resume_file)
-        
-        # Pre-configured for Aniket's website
-        st.markdown("### 🌐 Portfolio Website")
-        website_url = "https://aniketdshirsat.com/"
-        st.text_input(
-            "Portfolio Website",
-            value=website_url,
-            help="Aniket Shirsat's professional portfolio",
-            disabled=True
-        )
-        
-        # Display Aniket's key achievements in styled cards
-        st.markdown("### 🏆 Key Highlights")
-        st.markdown("""
-        <div class="achievement-card">
-            <strong>Academic Excellence</strong><br>
-            Perfect 4.0 GPA in Applied Data Science
-        </div>
-        <div class="achievement-card">
-            <strong>ML Innovation</strong><br>
-            90% accuracy in cultural detection models
-        </div>
-        <div class="achievement-card">
-            <strong>Business Impact</strong><br>
-            $1M+ savings through optimization
-        </div>
-        <div class="achievement-card">
-            <strong>Current Role</strong><br>
-            Research Assistant at Indiana University
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Show resume status
-        if ("chatbot" in st.session_state and 
-            hasattr(st.session_state.chatbot.knowledge_base, 'resume_content') and 
-            st.session_state.chatbot.knowledge_base.resume_content is not None):
-            resume_info = st.session_state.chatbot.knowledge_base.resume_content
-            st.markdown("### 📋 Knowledge Base Status")
-            st.success(f"✅ Resume: {resume_info.filename}")
-            st.success(f"✅ Portfolio: aniketdshirsat.com")
-            st.info(f"📊 Total content: {resume_info.metadata['word_count']} words from resume + website data")
-        
-        # Data collection options
-        st.markdown("### 📊 Data Management")
-        max_pages = st.slider("Pages to Analyze", 1, 20, 10)
-        
-        # Update button
-        if st.button("🔄 Update Knowledge Base", type="primary"):
-            scrape_website(website_url, max_pages)
-        
-        # User data management section
-        st.markdown("### 👥 User Analytics")
-        user_data = load_user_data()
-        
-        if not user_data.empty:
-            st.metric("Total Visitors", len(user_data))
-            st.metric("Unique Visitors", user_data['email'].nunique())
-            
-            # Show recent visitors (last 5)
-            if len(user_data) > 0:
-                recent_visitors = user_data.tail(3)[['name', 'email']].values
-                st.markdown("**Recent Visitors:**")
-                for name, email in recent_visitors:
-                    st.text(f"• {name} ({email})")
-            
-            # Export data button
-            csv_data = export_user_data()
-            if csv_data:
-                st.download_button(
-                    label="📥 Download Visitor Data",
-                    data=csv_data,
-                    file_name=f"aniket_chatbot_visitors_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    help="Download complete visitor information as CSV"
-                )
-        else:
-            st.info("No visitor data yet")
-    
-    # Main chat interface
-    if openai_api_key:
-        if "chatbot" not in st.session_state:
-            st.session_state.chatbot = AniketChatbotAI(openai_api_key)
-            # Load saved resume into the knowledge base
-            if hasattr(st.session_state.chatbot.knowledge_base, 'resume_content') and st.session_state.chatbot.knowledge_base.resume_content:
-                st.session_state.chatbot.knowledge_base._add_resume_to_chunks()
-        
-        # Generate unique session ID if not exists
-        if "session_id" not in st.session_state:
-            st.session_state.session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(datetime.now()) % 10000}"
-        
-        # Load saved avatar if not already loaded
-        if "avatar_base64" not in st.session_state:
-            saved_avatar = load_saved_avatar()
-            if saved_avatar:
-                st.session_state.avatar_base64 = saved_avatar
-        
-        # Initialize user info collection states
-        if "user_info_collected" not in st.session_state:
-            st.session_state.user_info_collected = False
-        if "asking_for_name" not in st.session_state:
-            st.session_state.asking_for_name = False
-        if "asking_for_email" not in st.session_state:
-            st.session_state.asking_for_email = False
-        if "user_name" not in st.session_state:
-            st.session_state.user_name = ""
-        if "user_email" not in st.session_state:
-            st.session_state.user_email = ""
-        
-        if "messages" not in st.session_state:
-            st.session_state.messages = [
-                {
-                    "role": "assistant", 
-                    "content": """Hello! I'm Aniket's AI Assistant. How may I help you?"""
-                },
-                {
-                    "role": "assistant", 
-                    "content": """Before we begin, may I please have your name?"""
-                }
-            ]
-            st.session_state.asking_for_name = True
-        
-        # User information collection (only show if not collected) - removed the header messages
-        
-        st.markdown("---")
-        
-        # Display chat history with custom or default avatar
-        for message in st.session_state.messages:
-            if message["role"] == "assistant":
-                # Use custom avatar if uploaded, otherwise use default
-                if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                    # Create custom avatar HTML
-                    st.markdown(f"""
-                    <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                        <img src="{st.session_state.avatar_base64}" 
-                             style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover;">
-                        <div style="flex-grow: 1; background: #f0f2f6; padding: 12px; border-radius: 12px;">
-                            {message["content"]}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    with st.chat_message("assistant", avatar="👨‍💼"):
-                        st.markdown(message["content"])
-            else:
-                with st.chat_message("user"):
-                    st.markdown(message["content"])
-        
-        # Chat input with conditional behavior
-        if st.session_state.asking_for_name:
-            placeholder_text = "Please enter your name..."
-        elif st.session_state.asking_for_email:
-            placeholder_text = "Please enter your email address..."
-        else:
-            placeholder_text = "Ask about Aniket's qualifications, experience, or skills..."
-        
-        if prompt := st.chat_input(placeholder_text):
-            # Add user message
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-            
-            # Handle user info collection flow
-            if st.session_state.asking_for_name:
-                # Validate name input
-                if prompt.strip():
-                    st.session_state.user_name = prompt.strip()
-                    st.session_state.asking_for_name = False
-                    st.session_state.asking_for_email = True
-                    
-                    # Assistant asks for email
-                    email_request = f"Thank you, {st.session_state.user_name}! Could you please share your email address as well?"
-                    st.session_state.messages.append({"role": "assistant", "content": email_request})
-                    
-                    # Display response with custom avatar
-                    if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                        st.markdown(f"""
-                        <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                            <img src="{st.session_state.avatar_base64}" 
-                                 style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover;">
-                            <div style="flex-grow: 1; background: #f0f2f6; padding: 12px; border-radius: 12px;">
-                                {email_request}
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        with st.chat_message("assistant", avatar="👨‍💼"):
-                            st.markdown(email_request)
-                else:
-                    # Ask for name again if empty
-                    name_retry = "I didn't catch that. Could you please tell me your name?"
-                    st.session_state.messages.append({"role": "assistant", "content": name_retry})
-                    
-                    if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                        st.markdown(f"""
-                        <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                            <img src="{st.session_state.avatar_base64}" 
-                                 style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover;">
-                            <div style="flex-grow: 1; background: #f0f2f6; padding: 12px; border-radius: 12px;">
-                                {name_retry}
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        with st.chat_message("assistant", avatar="👨‍💼"):
-                            st.markdown(name_retry)
-            
-            elif st.session_state.asking_for_email:
-                # Simple email validation - check for @ and . characters
-                email_input = prompt.strip()
-                
-                if is_valid_email(email_input):
-                    st.session_state.user_email = email_input
-                    st.session_state.asking_for_email = False
-                    st.session_state.user_info_collected = True
-                    
-                    # Save user information to CSV
-                    timestamp = datetime.now().isoformat()
-                    user_data = {
-                        'timestamp': [timestamp],
-                        'name': [st.session_state.user_name],
-                        'email': [st.session_state.user_email],
-                        'company': ['Not provided'],
-                        'role': ['Not provided'],
-                        'session_id': [st.session_state.session_id]
-                    }
-                    
-                    try:
-                        df = pd.DataFrame(user_data)
-                        
-                        # Save to CSV (append mode)
-                        if os.path.exists(USER_DATA_FILE):
-                            existing_df = pd.read_csv(USER_DATA_FILE)
-                            # Check if we need to add new columns
-                            if 'company' not in existing_df.columns:
-                                existing_df['company'] = 'Not provided'
-                            if 'role' not in existing_df.columns:
-                                existing_df['role'] = 'Not provided'
-                            df = pd.concat([existing_df, df], ignore_index=True)
-                        
-                        df.to_csv(USER_DATA_FILE, index=False)
-                        
-                        # Welcome message and instructions
-                        welcome_msg = f"""Perfect! Thank you, {st.session_state.user_name}. I'm ready to answer any questions about Aniket Shirsat's professional background, qualifications, and experience.
-
-**Ask me about:** Education • Technical Skills • Work Experience • Projects • Achievements
-
-What would you like to know?"""
-                        
-                        st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
-                        
-                        # Display response with custom avatar
-                        if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                            st.markdown(f"""
-                            <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                                <img src="{st.session_state.avatar_base64}" 
-                                     style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover;">
-                                <div style="flex-grow: 1; background: #f0f2f6; padding: 12px; border-radius: 12px;">
-                                    {welcome_msg}
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            with st.chat_message("assistant", avatar="👨‍💼"):
-                                st.markdown(welcome_msg)
-                        
-                    except Exception as e:
-                        st.error(f"Error saving information: {str(e)}")
-                        
-                else:
-                    # Ask for valid email
-                    email_retry = "That doesn't look like a valid email address. Could you please enter a valid email (e.g., john@company.com)?"
-                    st.session_state.messages.append({"role": "assistant", "content": email_retry})
-                    
-                    if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                        st.markdown(f"""
-                        <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                            <img src="{st.session_state.avatar_base64}" 
-                                 style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover;">
-                            <div style="flex-grow: 1; background: #f0f2f6; padding: 12px; border-radius: 12px;">
-                                {email_retry}
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        with st.chat_message("assistant", avatar="👨‍💼"):
-                            st.markdown(email_retry)
-            
-            else:
-                # Normal chat after info collection
-                # Generate response with custom avatar
-                if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                    with st.spinner("Processing your question..."):
-                        response = st.session_state.chatbot.generate_expert_response(prompt)
-                    
-                    # Display response with custom avatar
-                    st.markdown(f"""
-                    <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                        <img src="{st.session_state.avatar_base64}" 
-                             style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover;">
-                        <div style="flex-grow: 1; background: #f0f2f6; padding: 12px; border-radius: 12px;">
-                            {response}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    with st.chat_message("assistant", avatar="👨‍💼"):
-                        with st.spinner("Processing your question..."):
-                            response = st.session_state.chatbot.generate_expert_response(prompt)
-                        st.markdown(response)
-                
-                st.session_state.messages.append({"role": "assistant", "content": response})
-    
-    else:
-        st.warning("Please configure your API key in the sidebar to start using the assistant.")
-        
-        # Show information without API key
-        st.subheader("🎯 About This Assistant")
-        st.info("""
-        This professional assistant provides comprehensive information about **Aniket Shirsat** for recruiters, hiring managers, and professional contacts.
-        
-        **Key Features:**
-        • Complete educational background and credentials
-        • Technical skills and programming expertise  
-        • Professional experience and measurable achievements
-        • **Permanent resume storage** - upload once, use forever
-        • **Custom avatar support** - personalize the experience
-        • Intelligent search across portfolio and resume content
-        
-        **Perfect for:**
-        • Recruiter candidate screening
-        • Hiring manager evaluations
-        • HR preliminary assessments
-        • Professional networking inquiries
-        
-        **Get Started:**
-        1. Configure your API key (see sidebar)
-        2. Upload resume and avatar (saved permanently)
-        3. Update the knowledge base with latest information
-        4. Ask any questions about Aniket's professional background
-        """)
-        
-        # Show what's already saved
-        if os.path.exists(RESUME_FILE) or os.path.exists(AVATAR_FILE):
-            st.markdown("### 💾 Saved Data")
-            if os.path.exists(RESUME_FILE):
-                st.success("✅ Resume data saved and ready to load")
-            if os.path.exists(AVATAR_FILE):
-                st.success("✅ Custom avatar saved and ready to load")
-    
-    # Footer with subtle branding
-    st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; color: #666; font-size: 14px; padding: 20px;">
-        Professional Portfolio Assistant | Enhanced with Persistent Resume & Avatar Storage
-    </div>
-    """, unsafe_allow_html=True)
-
-def process_resume_file(uploaded_file):
-    """Process uploaded resume file"""
-    with st.spinner("Processing resume..."):
-        processor = ResumeProcessor()
-        resume_content = processor.process_resume(uploaded_file)
-        
-        if resume_content:
-            # Store in session state so it persists
-            if "chatbot" in st.session_state:
-                st.session_state.chatbot.knowledge_base.add_resume_content(resume_content)
-            
-            # Show processing results
-            st.subheader("📋 Resume Processing Results")
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Filename", resume_content.filename)
-            with col2:
-                st.metric("Word Count", resume_content.metadata['word_count'])
-            with col3:
-                st.metric("File Size", f"{resume_content.metadata['file_size'] / 1024:.1f} KB")
-            
-            # Show first few lines of extracted content
-            st.subheader("📄 Content Preview")
-            preview_text = resume_content.content[:500] + "..." if len(resume_content.content) > 500 else resume_content.content
-            st.text_area("Extracted Text (Preview)", preview_text, height=200, disabled=True)
-            
-        else:
-            st.error("Failed to process the resume. Please check the file format and try again.")
-
-def scrape_website(url: str, max_pages: int):
-    """Update knowledge base with website content"""
-    with st.spinner("Updating knowledge base..."):
-        scraper = SimpleWebsiteScraper()
-        content = scraper.scrape_website(url, max_pages)
-        
-        if content:
-            # Store in session state so it persists
-            if "chatbot" in st.session_state:
-                st.session_state.chatbot.knowledge_base.add_website_content(content)
-            
-            # Show analysis results
-            st.subheader("📊 Knowledge Base Update")
-            df = pd.DataFrame([
-                {
-                    "Page": c.url,
-                    "Title": c.title[:50] + "..." if len(c.title) > 50 else c.title,
-                    "Content Length": c.metadata.get("word_count", 0),
-                }
-                for c in content
-            ])
-            st.dataframe(df, use_container_width=True)
-        else:
-            st.error("Could not retrieve content. Please verify the URL and try again.")
-
-if __name__ == "__main__":
-    main()
