@@ -1073,6 +1073,115 @@ def main():
         
         # Rerun to show new messages
         st.rerun()
+    
+    # Admin panel in sidebar (hidden by default, accessible when needed)
+    with st.sidebar:
+        st.header("⚙️ Admin Panel")
+        st.markdown("*For administrators only*")
+        
+        # Resume Upload Section
+        st.markdown("### 📄 Resume Management")
+        
+        # Show current resume status
+        if hasattr(st.session_state.chatbot.knowledge_base, 'resume_content') and st.session_state.chatbot.knowledge_base.resume_content:
+            resume_info = st.session_state.chatbot.knowledge_base.resume_content
+            st.success(f"✅ Resume: {resume_info.filename}")
+            
+            # Resume info
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Words", resume_info.metadata['word_count'])
+            with col2:
+                st.metric("Size", f"{resume_info.metadata['file_size'] / 1024:.1f} KB")
+            
+            if st.button("🗑️ Remove Resume"):
+                if st.session_state.chatbot.knowledge_base.delete_saved_resume():
+                    st.success("Resume removed!")
+                    st.rerun()
+        else:
+            st.info("📝 No resume loaded")
+        
+        # Upload new resume
+        resume_file = st.file_uploader(
+            "Upload Resume",
+            type=['pdf', 'docx', 'txt'],
+            help="Upload Aniket's resume for enhanced responses"
+        )
+        
+        if resume_file and st.button("📝 Process Resume"):
+            process_resume_file(resume_file)
+        
+        # Avatar Upload Section
+        st.markdown("### 🖼️ Avatar Management")
+        
+        if "avatar_base64" in st.session_state:
+            st.success("✅ Avatar loaded")
+            # Show current avatar preview
+            st.image(st.session_state.avatar_base64, width=60)
+            if st.button("🗑️ Remove Avatar"):
+                if delete_saved_avatar():
+                    if "avatar_base64" in st.session_state:
+                        del st.session_state.avatar_base64
+                    st.success("Avatar removed!")
+                    st.rerun()
+        else:
+            st.info("📷 No avatar loaded")
+        
+        avatar_file = st.file_uploader(
+            "Upload Avatar",
+            type=['png', 'jpg', 'jpeg'],
+            help="Upload professional avatar image"
+        )
+        
+        if avatar_file:
+            new_avatar = get_image_base64(avatar_file)
+            if new_avatar:
+                st.session_state.avatar_base64 = new_avatar
+                save_avatar(new_avatar)
+                st.success("✅ Avatar uploaded!")
+                st.rerun()
+        
+        # Website scraping
+        st.markdown("### 🌐 Website Data")
+        website_url = st.text_input("Website URL", value="https://aniketdshirsat.com/")
+        max_pages = st.slider("Pages to analyze", 1, 20, 10)
+        
+        if st.button("🔄 Update Knowledge Base"):
+            scrape_website(website_url, max_pages)
+        
+        # User data analytics
+        st.markdown("### 👥 User Analytics")
+        user_data = load_user_data()
+        
+        if not user_data.empty:
+            st.metric("Total Visitors", len(user_data))
+            st.metric("Unique Visitors", user_data['email'].nunique())
+            
+            # Show recent visitors
+            if len(user_data) > 0:
+                recent_visitors = user_data.tail(5)[['name', 'email']]
+                st.markdown("**Recent Visitors:**")
+                for _, row in recent_visitors.iterrows():
+                    st.text(f"• {row['name']} ({row['email']})")
+            
+            # Download data
+            csv_data = export_user_data()
+            if csv_data:
+                st.download_button(
+                    "📥 Download Visitor Data",
+                    csv_data,
+                    f"aniket_visitors_{datetime.now().strftime('%Y%m%d')}.csv",
+                    "text/csv",
+                    help="Download complete visitor data as CSV"
+                )
+        else:
+            st.info("No visitor data yet")
+        
+        # System info
+        st.markdown("### ⚡ System Status")
+        knowledge_chunks = len(st.session_state.chatbot.knowledge_base.content_chunks) if hasattr(st.session_state.chatbot.knowledge_base, 'content_chunks') else 0
+        st.metric("Knowledge Chunks", knowledge_chunks)
+        st.metric("Session ID", st.session_state.session_id[-8:])  # Show last 8 chars
 
 def process_resume_file(uploaded_file):
     """Process uploaded resume file"""
