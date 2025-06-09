@@ -547,6 +547,9 @@ def main():
                     <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
                     <div class="message-bubble">{message["content"]}</div>
                 </div>
+                """, unsafe_allow_html=True)px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
+                    <div class="message-bubble">{message["content"]}</div>
+                </div>
                 """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
