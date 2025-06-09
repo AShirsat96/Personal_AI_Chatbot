@@ -945,8 +945,21 @@ def main():
         # Display messages using Streamlit's native chat components
         for message in st.session_state.messages:
             if message["role"] == "assistant":
-                with st.chat_message("assistant", avatar="👨‍💼"):
-                    st.write(message["content"])
+                # Use custom avatar if available, otherwise use emoji
+                if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
+                    # Create custom message with avatar image
+                    col1, col2 = st.columns([0.1, 0.9])
+                    with col1:
+                        st.markdown(f'<img src="{st.session_state.avatar_base64}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">', unsafe_allow_html=True)
+                    with col2:
+                        st.markdown(f"""
+                        <div style="background: #f0f0f0; padding: 12px 16px; border-radius: 18px; margin-left: 10px;">
+                            {message["content"]}
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    with st.chat_message("assistant", avatar="👨‍💼"):
+                        st.write(message["content"])
             else:
                 with st.chat_message("user"):
                     st.write(message["content"])
