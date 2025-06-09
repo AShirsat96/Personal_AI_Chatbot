@@ -853,12 +853,12 @@ def main():
     # Get avatar for display
     avatar_src = st.session_state.get("avatar_base64", "https://via.placeholder.com/40x40/667eea/ffffff?text=A")
     
-    # Custom CSS for modern chat interface - restored and simplified
+    # Custom CSS for modern chat interface with widget-style header
     st.markdown("""
     <style>
     /* Main container styling */
     .block-container {
-        padding-top: 2rem;
+        padding-top: 1rem;
         padding-bottom: 1rem;
         max-width: 600px;
     }
@@ -868,12 +868,46 @@ def main():
         visibility: hidden;
     }
     
+    /* Widget-style header bar */
+    .widget-header {
+        background: #f8f9fa;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px 10px 0 0;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .widget-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 16px;
+        color: #333;
+    }
+    
+    .widget-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    
+    .widget-controls {
+        display: flex;
+        gap: 10px;
+        color: #666;
+    }
+    
     /* Chat header styling */
     .chat-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         padding: 20px;
-        border-radius: 15px 15px 0 0;
+        border-radius: 0;
         text-align: center;
         margin-bottom: 0;
     }
@@ -894,7 +928,8 @@ def main():
     .chat-container {
         background: white;
         border: 1px solid #e0e0e0;
-        border-radius: 0 0 15px 15px;
+        border-top: none;
+        border-radius: 0 0 10px 10px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         padding: 0;
         margin-top: 0;
@@ -916,19 +951,40 @@ def main():
         font-size: 16px !important;
         padding: 12px 20px !important;
     }
-    
-    /* Footer message */
-    .chat-footer {
-        text-align: center;
-        font-size: 12px;
-        color: #888;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 0 0 15px 15px;
-        border-top: 1px solid #eee;
-    }
     </style>
     """, unsafe_allow_html=True)
+    
+    # Widget-style header bar
+    avatar_for_header = st.session_state.avatar_base64 if "avatar_base64" in st.session_state and st.session_state.avatar_base64 else "👨‍💼"
+    
+    if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
+        st.markdown(f"""
+        <div class="widget-header">
+            <div class="widget-title">
+                <img src="{st.session_state.avatar_base64}" class="widget-avatar" alt="Aniket">
+                Ask Aniket
+            </div>
+            <div class="widget-controls">
+                <span>⤢</span>
+                <span>−</span>
+                <span>✕</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div class="widget-header">
+            <div class="widget-title">
+                <span style="font-size: 20px;">👨‍💼</span>
+                Ask Aniket
+            </div>
+            <div class="widget-controls">
+                <span>⤢</span>
+                <span>−</span>
+                <span>✕</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Modern chat header
     st.markdown("""
