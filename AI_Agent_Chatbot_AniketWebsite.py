@@ -853,10 +853,10 @@ def main():
     # Get avatar for display
     avatar_src = st.session_state.get("avatar_base64", "https://via.placeholder.com/40x40/667eea/ffffff?text=A")
     
-    # Custom CSS for full-width chat interface with proper avatar spacing
+    # Custom CSS for proper chat interface with white background
     st.markdown("""
     <style>
-    /* Main container styling - full width with proper top padding */
+    /* Main container styling */
     .block-container {
         padding-top: 3rem !important;
         padding-bottom: 1rem;
@@ -864,6 +864,17 @@ def main():
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         width: 100% !important;
+        background-color: white !important;
+    }
+    
+    /* Streamlit app background */
+    .stApp {
+        background-color: white !important;
+    }
+    
+    /* Main content area */
+    .main {
+        background-color: white !important;
     }
     
     /* Hide Streamlit branding */
@@ -877,35 +888,37 @@ def main():
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         padding-top: 3rem !important;
+        background-color: white !important;
     }
     
-    /* Chat messages container */
+    /* Chat messages container - ensure white background */
     .chat-container {
-        background: white;
+        background-color: white !important;
         padding: 1rem 0 !important;
         margin: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
     }
     
-    /* Streamlit chat message styling - prevent cutoff */
+    /* Streamlit chat message styling */
     .stChatMessage {
         padding: 1rem !important;
         max-width: 100% !important;
         width: 100% !important;
         margin: 0.5rem 0 !important;
         box-sizing: border-box !important;
+        background-color: transparent !important;
     }
     
     .stChatMessage > div {
         max-width: 100% !important;
         width: 100% !important;
         display: flex !important;
-        flex-wrap: wrap !important;
         align-items: flex-start !important;
+        background-color: transparent !important;
     }
     
-    /* Message content area */
+    /* Message content area with proper background */
     .stChatMessage .stMarkdown {
         max-width: calc(100% - 60px) !important;
         width: calc(100% - 60px) !important;
@@ -913,17 +926,19 @@ def main():
         overflow-wrap: break-word !important;
         flex: 1 !important;
         margin-left: 10px !important;
+        background-color: #f0f2f6 !important;
+        padding: 12px 16px !important;
+        border-radius: 18px !important;
     }
     
-    /* Avatar styling - ensure full visibility */
+    /* Avatar styling */
     .stChatMessage [data-testid="chatAvatarIcon-assistant"],
     .stChatMessage [data-testid="chatAvatarIcon-user"] {
         flex-shrink: 0 !important;
         width: 40px !important;
         height: 40px !important;
         margin-top: 0 !important;
-        position: relative !important;
-        top: 0 !important;
+        border-radius: 50% !important;
     }
     
     /* Chat input styling */
@@ -931,12 +946,13 @@ def main():
         max-width: 100% !important;
         width: 100% !important;
         margin-top: 1rem !important;
+        background-color: white !important;
     }
     
     .stChatInput > div > div > div {
         border-radius: 25px !important;
         border: 2px solid #667eea !important;
-        background: white !important;
+        background-color: white !important;
         width: 100% !important;
         max-width: 100% !important;
     }
@@ -945,9 +961,20 @@ def main():
         font-size: 16px !important;
         padding: 12px 20px !important;
         width: 100% !important;
+        background-color: white !important;
+        color: black !important;
     }
     
-    /* Custom message layout for avatar messages */
+    /* Force white background everywhere */
+    section[data-testid="stSidebar"] > div {
+        background-color: white !important;
+    }
+    
+    .element-container {
+        background-color: transparent !important;
+    }
+    
+    /* Custom message with proper background */
     .custom-message {
         display: flex !important;
         align-items: flex-start !important;
@@ -957,10 +984,11 @@ def main():
         max-width: 100% !important;
         width: 100% !important;
         box-sizing: border-box !important;
+        background-color: transparent !important;
     }
     
     .custom-message-content {
-        background: #f0f0f0 !important;
+        background-color: #f0f2f6 !important;
         padding: 12px 16px !important;
         border-radius: 18px !important;
         flex: 1 !important;
