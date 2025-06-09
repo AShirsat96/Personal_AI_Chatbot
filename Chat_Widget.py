@@ -2,10 +2,6 @@ import os
 import streamlit as st
 from typing import List, Dict, Optional
 from datetime import datetime
-import json
-import base64
-from io import BytesIO
-from PIL import Image
 import pickle
 
 # OpenAI for chat
@@ -31,7 +27,7 @@ def load_saved_resume():
         if os.path.exists(RESUME_FILE):
             with open(RESUME_FILE, 'rb') as f:
                 return pickle.load(f)
-    except Exception as e:
+    except Exception:
         return None
     return None
 
@@ -41,7 +37,7 @@ def load_saved_avatar():
         if os.path.exists(AVATAR_FILE):
             with open(AVATAR_FILE, 'rb') as f:
                 return pickle.load(f)
-    except Exception as e:
+    except Exception:
         return None
     return None
 
@@ -90,7 +86,7 @@ def save_user_info(name, email, timestamp=None):
             df.to_csv(USER_DATA_FILE, mode='w', header=True, index=False)
         
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 class SimpleKnowledgeBase:
@@ -414,13 +410,6 @@ def main():
             line-height: 1.4;
         }
         
-        /* Input styling */
-        .chat-input-container {
-            padding: 15px 20px;
-            border-top: 1px solid #e1e8ed;
-            background: #fafbfc;
-        }
-        
         .user-info-prompt {
             background: #fff3cd;
             border: 1px solid #ffeaa7;
@@ -500,7 +489,11 @@ def main():
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
     # Chat header with avatar and title
-    avatar_src = st.session_state.get('avatar_base64', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==')
+    if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
+        avatar_src = st.session_state.avatar_base64
+    else:
+        # Default avatar placeholder
+        avatar_src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTIgMTJDMTQuNzYxNCAxMiAxNyA5Ljc2MTQyIDE3IDdDMTcgNC4yMzg1OCAxNC43NjE0IDIgMTIgMkM5LjIzODU4IDIgNyA0LjIzODU4IDcgN0M3IDkuNzYxNDIgOS4yMzg1OCAxMiAxMiAxMlpNMTIgMTRDOC42ODYyOSAxNCA2IDE2LjIzODYgNiAxOUg2QzYgMjEuNzYxNCA4LjIzODU4IDI0IDExIDI0SDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
     
     st.markdown(f"""
     <div class="chat-header">
@@ -535,47 +528,30 @@ def main():
     for message in st.session_state.messages:
         if message["role"] == "assistant":
             if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                st.markdown(f"""
+                message_html = f"""
                 <div class="assistant-message">
                     <img src="{st.session_state.avatar_base64}" class="assistant-avatar" alt="Assistant">
                     <div class="message-bubble">{message["content"]}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                """
             else:
-                st.markdown(f"""
+                message_html = f"""
                 <div class="assistant-message">
                     <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
                     <div class="message-bubble">{message["content"]}</div>
                 </div>
-                """, unsafe_allow_html=True)px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
-                    <div class="message-bubble">{message["content"]}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                """
+            st.markdown(message_html, unsafe_allow_html=True)
         else:
-            st.markdown(f"""
+            user_html = f"""
             <div class="user-message">
                 <div class="user-bubble">{message["content"]}</div>
             </div>
-            """, unsafe_allow_html=True)
+            """
+            st.markdown(user_html, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
-    
-    # Close chat container before input
-    st.markdown('</div>', unsafe_allow_html=True)px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
-                    <div class="message-bubble">{message["content"]}</div>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="user-message">
-                <div class="user-bubble">{message["content"]}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
-    
-    # Close chat container before input
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
     
     # Chat input
     if st.session_state.asking_for_name:
@@ -589,13 +565,6 @@ def main():
         # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        # Display user message immediately with custom styling
-        st.markdown(f"""
-        <div class="user-message">
-            <div class="user-bubble">{prompt}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
         # Handle user info collection
         if st.session_state.asking_for_name:
             if prompt.strip():
@@ -605,31 +574,9 @@ def main():
                 
                 response = f"Thank you, {st.session_state.user_name}! Could you please share your email address?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                # Display response with custom styling
-                if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                    st.markdown(f"""
-                    <div class="assistant-message">
-                        <img src="{st.session_state.avatar_base64}" class="assistant-avatar" alt="Assistant">
-                        <div class="message-bubble">{response}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                    <div class="assistant-message">
-                        <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
-                        <div class="message-bubble">{response}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
             else:
                 response = "I didn't catch that. Could you please tell me your name?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                st.markdown(f"""
-                <div class="assistant-message">
-                    <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
-                    <div class="message-bubble">{response}</div>
-                </div>
-                """, unsafe_allow_html=True)
         
         elif st.session_state.asking_for_email:
             if is_valid_email(prompt.strip()):
@@ -647,52 +594,14 @@ def main():
 What would you like to know?"""
                 
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                # Display response with custom styling
-                if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                    st.markdown(f"""
-                    <div class="assistant-message">
-                        <img src="{st.session_state.avatar_base64}" class="assistant-avatar" alt="Assistant">
-                        <div class="message-bubble">{response}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                    <div class="assistant-message">
-                        <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
-                        <div class="message-bubble">{response}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
             else:
                 response = "That doesn't look like a valid email. Please enter a valid email address (e.g., john@company.com)."
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                st.markdown(f"""
-                <div class="assistant-message">
-                    <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
-                    <div class="message-bubble">{response}</div>
-                </div>
-                """, unsafe_allow_html=True)
         
         else:
             # Normal chat
             with st.spinner("Thinking..."):
                 response = st.session_state.chatbot.generate_expert_response(prompt)
-            
-            # Display response with custom styling
-            if "avatar_base64" in st.session_state and st.session_state.avatar_base64:
-                st.markdown(f"""
-                <div class="assistant-message">
-                    <img src="{st.session_state.avatar_base64}" class="assistant-avatar" alt="Assistant">
-                    <div class="message-bubble">{response}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="assistant-message">
-                    <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">👨‍💼</div>
-                    <div class="message-bubble">{response}</div>
-                </div>
-                """, unsafe_allow_html=True)
             
             st.session_state.messages.append({"role": "assistant", "content": response})
         
