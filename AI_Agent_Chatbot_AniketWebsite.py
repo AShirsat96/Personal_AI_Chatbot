@@ -579,10 +579,7 @@ class AniketChatbotAI:
         """Generate specialized system prompt for Aniket's expertise"""
         resume_context = ""
         if has_resume:
-            resume_context = """
-        
-        RESUME INFORMATION:
-        You have access to Aniket's detailed resume content. Use this information to provide specific details about his work experience, education, skills, projects, and achievements. When answering questions about his background, prioritize information from the resume as it contains the most current and detailed information."""
+            resume_context = "\n\nRESUME INFORMATION: You have access to Aniket's detailed resume content. Use this information to provide specific details about his work experience, education, skills, projects, and achievements. When answering questions about his background, prioritize information from the resume as it contains the most current and detailed information."
         
         return f"""You are Aniket's AI assistant, providing information about Aniket Shirsat's qualifications and experience. Respond naturally and conversationally, as if you're representing him professionally.
         
@@ -633,21 +630,13 @@ class AniketChatbotAI:
         
         # Custom responses for common queries about Aniket
         if any(keyword in query_lower for keyword in ['experience', 'background', 'about']):
-            expertise_context = f"""
-            Aniket brings solid experience in data science and machine learning. He's currently working toward his Master's in Applied Data Science at Indiana University with a perfect 4.0 GPA while serving as a Research Assistant. His background includes practical work developing ML models for cultural ambiguity detection that achieved 90% accuracy, plus vessel fuel optimization models that generated $1M in annual savings. He combines academic excellence with real-world application experience.
-            """
+            expertise_context = "Aniket brings solid experience in data science and machine learning. He's currently working toward his Master's in Applied Data Science at Indiana University with a perfect 4.0 GPA while serving as a Research Assistant. His background includes practical work developing ML models for cultural ambiguity detection that achieved 90% accuracy, plus vessel fuel optimization models that generated $1M in annual savings. He combines academic excellence with real-world application experience."
         elif any(keyword in query_lower for keyword in ['skills', 'technical', 'programming']):
-            expertise_context = f"""
-            His technical toolkit covers the essentials: Python, R, and SQL for programming, plus experience across AWS, Azure, and GCP cloud platforms. He specializes in machine learning, computer vision, and natural language processing, with hands-on experience building advanced analytics solutions. What stands out is his ability to translate technical skills into measurable business results.
-            """
+            expertise_context = "His technical toolkit covers the essentials: Python, R, and SQL for programming, plus experience across AWS, Azure, and GCP cloud platforms. He specializes in machine learning, computer vision, and natural language processing, with hands-on experience building advanced analytics solutions. What stands out is his ability to translate technical skills into measurable business results."
         elif any(keyword in query_lower for keyword in ['projects', 'research', 'work']):
-            expertise_context = f"""
-            Some notable work includes developing cultural ambiguity detection systems for advertisements with 90% accuracy, creating vessel fuel optimization models that reduced consumption by 5% across 50+ vessels (saving $1M annually), and building dataset pipelines for annotated advertisement images. His research spans computer vision and NLP applications, often with practical business applications.
-            """
+            expertise_context = "Some notable work includes developing cultural ambiguity detection systems for advertisements with 90% accuracy, creating vessel fuel optimization models that reduced consumption by 5% across 50+ vessels (saving $1M annually), and building dataset pipelines for annotated advertisement images. His research spans computer vision and NLP applications, often with practical business applications."
         elif any(keyword in query_lower for keyword in ['collaboration', 'contact', 'connect', 'hire', 'opportunity']):
-            expertise_context = f"""
-            Aniket is actively seeking full-time opportunities in data science and machine learning roles. His combination of strong academic performance, research experience, and proven ability to deliver quantifiable business results makes him well-suited for analyst, engineer, or research positions. He's particularly interested in roles where he can apply ML to solve real-world problems.
-            """
+            expertise_context = "Aniket is actively seeking full-time opportunities in data science and machine learning roles. His combination of strong academic performance, research experience, and proven ability to deliver quantifiable business results makes him well-suited for analyst, engineer, or research positions. He's particularly interested in roles where he can apply ML to solve real-world problems."
         else:
             expertise_context = ""
         
@@ -696,14 +685,12 @@ def main():
     # Custom CSS for chat widget-style interface
     st.markdown("""
     <style>
-    /* Hide Streamlit elements */
     .block-container {
         padding-top: 1rem;
         padding-bottom: 1rem;
         max-width: 500px;
     }
     
-    /* Chat widget styling */
     .chat-widget {
         background: white;
         border-radius: 20px;
@@ -791,12 +778,6 @@ def main():
         text-align: right;
     }
     
-    .chat-input-area {
-        padding: 15px 20px;
-        background: white;
-        border-top: 1px solid #eee;
-    }
-    
     .powered-by {
         text-align: center;
         font-size: 11px;
@@ -806,12 +787,10 @@ def main():
         border-top: 1px solid #eee;
     }
     
-    /* Hide Streamlit footer */
     .stApp > footer {
         visibility: hidden;
     }
     
-    /* Streamlit input styling */
     .stChatInput > div > div > div {
         border-radius: 20px !important;
         border: 1px solid #ddd !important;
@@ -821,3 +800,333 @@ def main():
         font-size: 14px !important;
     }
     </style>
+    """, unsafe_allow_html=True)
+    
+    # Load API Key from environment variable
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not openai_api_key:
+        st.error("❌ API Configuration Missing - Please set OPENAI_API_KEY in environment")
+        return
+    
+    # Initialize chatbot
+    if "chatbot" not in st.session_state:
+        st.session_state.chatbot = AniketChatbotAI(openai_api_key)
+    
+    # Generate unique session ID if not exists
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(datetime.now()) % 10000}"
+    
+    # Load saved avatar if not already loaded
+    if "avatar_base64" not in st.session_state:
+        saved_avatar = load_saved_avatar()
+        if saved_avatar:
+            st.session_state.avatar_base64 = saved_avatar
+    
+    # Initialize user info collection states
+    if "user_info_collected" not in st.session_state:
+        st.session_state.user_info_collected = False
+    if "asking_for_name" not in st.session_state:
+        st.session_state.asking_for_name = False
+    if "asking_for_email" not in st.session_state:
+        st.session_state.asking_for_email = False
+    if "user_name" not in st.session_state:
+        st.session_state.user_name = ""
+    if "user_email" not in st.session_state:
+        st.session_state.user_email = ""
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {
+                "role": "assistant", 
+                "content": "Hi! I'm Aniket's AI assistant. Here to assist you with your query about my services and background!",
+                "timestamp": datetime.now()
+            },
+            {
+                "role": "assistant", 
+                "content": "Before we begin, may I please have your name?",
+                "timestamp": datetime.now()
+            }
+        ]
+        st.session_state.asking_for_name = True
+    
+    # Get avatar for display
+    avatar_src = st.session_state.get("avatar_base64", "https://via.placeholder.com/40x40/667eea/ffffff?text=A")
+    
+    # Chat widget container
+    st.markdown(f"""
+    <div class="chat-widget">
+        <div class="chat-header">
+            <img src="{avatar_src}" class="chat-avatar" alt="Aniket">
+            <div class="chat-info">
+                <h3>Ask Aniket</h3>
+                <p>Portfolio Assistant</p>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chat-messages">
+    """, unsafe_allow_html=True)
+    
+    # Display messages
+    for message in st.session_state.messages:
+        timestamp = message.get("timestamp", datetime.now()).strftime("%H:%M")
+        
+        if message["role"] == "assistant":
+            st.markdown(f"""
+            <div class="message">
+                <img src="{avatar_src}" class="message-avatar" alt="Aniket">
+                <div>
+                    <div class="message-content">
+                        {message["content"]}
+                    </div>
+                    <div class="message-time">{timestamp}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="message user">
+                <div style="background: #667eea; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
+                    {st.session_state.user_name[0].upper() if st.session_state.user_name else "U"}
+                </div>
+                <div>
+                    <div class="message-content">
+                        {message["content"]}
+                    </div>
+                    <div class="message-time" style="text-align: left;">{timestamp}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("""
+        </div>
+        
+        <div class="powered-by">
+            This chat is powered by AI, designed to assist you with information about Aniket's background and services. While I'm constantly improving, please feel free to ask for more details or clarification if you ever need to!
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Chat input
+    if st.session_state.asking_for_name:
+        placeholder_text = "Please enter your name..."
+    elif st.session_state.asking_for_email:
+        placeholder_text = "Please enter your email address..."
+    else:
+        placeholder_text = "e.g. What experience does Aniket have?"
+    
+    if prompt := st.chat_input(placeholder_text):
+        # Add user message
+        user_message = {
+            "role": "user", 
+            "content": prompt,
+            "timestamp": datetime.now()
+        }
+        st.session_state.messages.append(user_message)
+        
+        # Handle user info collection flow
+        if st.session_state.asking_for_name:
+            # Validate name input
+            if prompt.strip():
+                st.session_state.user_name = prompt.strip()
+                st.session_state.asking_for_name = False
+                st.session_state.asking_for_email = True
+                
+                # Assistant asks for email
+                email_request = f"Thank you, {st.session_state.user_name}! Could you please share your email address as well?"
+                assistant_message = {
+                    "role": "assistant", 
+                    "content": email_request,
+                    "timestamp": datetime.now()
+                }
+                st.session_state.messages.append(assistant_message)
+            else:
+                # Ask for name again if empty
+                name_retry = "I didn't catch that. Could you please tell me your name?"
+                assistant_message = {
+                    "role": "assistant", 
+                    "content": name_retry,
+                    "timestamp": datetime.now()
+                }
+                st.session_state.messages.append(assistant_message)
+        
+        elif st.session_state.asking_for_email:
+            # Simple email validation
+            email_input = prompt.strip()
+            
+            if is_valid_email(email_input):
+                st.session_state.user_email = email_input
+                st.session_state.asking_for_email = False
+                st.session_state.user_info_collected = True
+                
+                # Save user information
+                try:
+                    timestamp = datetime.now().isoformat()
+                    user_data = {
+                        'timestamp': [timestamp],
+                        'name': [st.session_state.user_name],
+                        'email': [st.session_state.user_email],
+                        'session_id': [st.session_state.session_id]
+                    }
+                    
+                    df = pd.DataFrame(user_data)
+                    
+                    # Save to CSV (append mode)
+                    if os.path.exists(USER_DATA_FILE):
+                        df.to_csv(USER_DATA_FILE, mode='a', header=False, index=False)
+                    else:
+                        df.to_csv(USER_DATA_FILE, mode='w', header=True, index=False)
+                    
+                    # Welcome message
+                    welcome_msg = f"Perfect! Thank you, {st.session_state.user_name}. I'm ready to answer any questions about Aniket's professional background, qualifications, and experience. What would you like to know?"
+                    
+                    assistant_message = {
+                        "role": "assistant", 
+                        "content": welcome_msg,
+                        "timestamp": datetime.now()
+                    }
+                    st.session_state.messages.append(assistant_message)
+                    
+                except Exception as e:
+                    error_msg = "Thanks for the information! I'm ready to help with questions about Aniket's background."
+                    assistant_message = {
+                        "role": "assistant", 
+                        "content": error_msg,
+                        "timestamp": datetime.now()
+                    }
+                    st.session_state.messages.append(assistant_message)
+                    
+            else:
+                # Ask for valid email
+                email_retry = "That doesn't look like a valid email address. Could you please enter a valid email (e.g., john@company.com)?"
+                assistant_message = {
+                    "role": "assistant", 
+                    "content": email_retry,
+                    "timestamp": datetime.now()
+                }
+                st.session_state.messages.append(assistant_message)
+        
+        else:
+            # Normal chat after info collection
+            with st.spinner("Processing..."):
+                response = st.session_state.chatbot.generate_expert_response(prompt)
+            
+            assistant_message = {
+                "role": "assistant", 
+                "content": response,
+                "timestamp": datetime.now()
+            }
+            st.session_state.messages.append(assistant_message)
+        
+        # Rerun to show new messages
+        st.rerun()
+    
+    # Admin sidebar (hidden by default)
+    with st.sidebar:
+        st.header("⚙️ Admin Panel")
+        
+        # Resume Upload Section
+        st.markdown("### 📄 Resume Management")
+        
+        # Show current resume status
+        if hasattr(st.session_state.chatbot.knowledge_base, 'resume_content') and st.session_state.chatbot.knowledge_base.resume_content:
+            resume_info = st.session_state.chatbot.knowledge_base.resume_content
+            st.success(f"✅ Resume: {resume_info.filename}")
+            
+            if st.button("🗑️ Remove Resume"):
+                if st.session_state.chatbot.knowledge_base.delete_saved_resume():
+                    st.success("Resume removed!")
+                    st.rerun()
+        else:
+            st.info("📝 No resume loaded")
+        
+        # Upload new resume
+        resume_file = st.file_uploader(
+            "Upload Resume",
+            type=['pdf', 'docx', 'txt'],
+            help="Upload Aniket's resume"
+        )
+        
+        if resume_file and st.button("Process Resume"):
+            process_resume_file(resume_file)
+        
+        # Avatar Upload Section
+        st.markdown("### 🖼️ Avatar Management")
+        
+        if "avatar_base64" in st.session_state:
+            st.success("✅ Avatar loaded")
+            if st.button("🗑️ Remove Avatar"):
+                if delete_saved_avatar():
+                    if "avatar_base64" in st.session_state:
+                        del st.session_state.avatar_base64
+                    st.success("Avatar removed!")
+                    st.rerun()
+        else:
+            st.info("📷 No avatar loaded")
+        
+        avatar_file = st.file_uploader(
+            "Upload Avatar",
+            type=['png', 'jpg', 'jpeg']
+        )
+        
+        if avatar_file:
+            new_avatar = get_image_base64(avatar_file)
+            if new_avatar:
+                st.session_state.avatar_base64 = new_avatar
+                save_avatar(new_avatar)
+                st.success("✅ Avatar uploaded!")
+                st.rerun()
+        
+        # Website scraping
+        st.markdown("### 🌐 Website Data")
+        website_url = st.text_input("Website URL", value="https://aniketdshirsat.com/")
+        max_pages = st.slider("Pages to analyze", 1, 10, 5)
+        
+        if st.button("Update Knowledge Base"):
+            scrape_website(website_url, max_pages)
+        
+        # User data analytics
+        st.markdown("### 👥 Analytics")
+        user_data = load_user_data()
+        
+        if not user_data.empty:
+            st.metric("Total Visitors", len(user_data))
+            st.metric("Unique Visitors", user_data['email'].nunique())
+            
+            # Download data
+            csv_data = export_user_data()
+            if csv_data:
+                st.download_button(
+                    "📥 Download Data",
+                    csv_data,
+                    f"visitors_{datetime.now().strftime('%Y%m%d')}.csv",
+                    "text/csv"
+                )
+
+def process_resume_file(uploaded_file):
+    """Process uploaded resume file"""
+    with st.spinner("Processing resume..."):
+        processor = ResumeProcessor()
+        resume_content = processor.process_resume(uploaded_file)
+        
+        if resume_content:
+            if "chatbot" in st.session_state:
+                st.session_state.chatbot.knowledge_base.add_resume_content(resume_content)
+            st.success(f"Resume processed: {resume_content.metadata['word_count']} words")
+        else:
+            st.error("Failed to process resume")
+
+def scrape_website(url: str, max_pages: int):
+    """Update knowledge base with website content"""
+    with st.spinner("Updating knowledge base..."):
+        scraper = SimpleWebsiteScraper()
+        content = scraper.scrape_website(url, max_pages)
+        
+        if content and "chatbot" in st.session_state:
+            st.session_state.chatbot.knowledge_base.add_website_content(content)
+            st.success(f"Updated with {len(content)} pages")
+        else:
+            st.error("Could not retrieve content")
+
+if __name__ == "__main__":
+    main()
