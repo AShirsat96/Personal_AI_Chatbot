@@ -1002,31 +1002,11 @@ def main():
         
         # User information collection (only show if not collected)
         if not st.session_state.user_info_collected:
-            # Show limited suggested questions during info collection
+            # Show limited message during info collection
             if st.session_state.asking_for_name:
                 st.markdown("### 👋 Please share your name to get started")
             elif st.session_state.asking_for_email:
                 st.markdown(f"### 📧 Nice to meet you, {st.session_state.user_name}! What's your email address?")
-        else:
-            # Show full chat interface (user info already collected)
-            # Suggested questions section with improved styling
-            st.markdown("### 💡 Common Questions")
-            suggested_questions = st.session_state.chatbot.get_suggested_questions()
-            
-            # Display suggested questions in columns
-            col1, col2 = st.columns(2)
-            
-            for i, question in enumerate(suggested_questions[:10]):
-                col = col1 if i % 2 == 0 else col2
-                if col.button(f"❓ {question}", key=f"suggestion_{i}"):
-                    # Add suggested question as user message
-                    st.session_state.messages.append({"role": "user", "content": question})
-                    
-                    # Generate and add response
-                    with st.spinner("Gathering information..."):
-                        response = st.session_state.chatbot.generate_expert_response(question)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                    st.rerun()
         
         st.markdown("---")
         
