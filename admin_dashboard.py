@@ -204,3 +204,6 @@ class ResumeProcessor:
                 text += page.extract_text() + "\n"
             
             return text.strip()
+        except Exception as e:
+            st.error(f"Error reading PDF: {str(e)}")
+            return ""
