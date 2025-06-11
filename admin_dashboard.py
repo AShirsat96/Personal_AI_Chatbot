@@ -97,6 +97,7 @@ class GitHubGistDatabase:
         """Get default data structure"""
         return {
             "user_interactions": [],
+            "conversations": [],  # 📊 NEW: Store full conversations
             "resume_content": None,
             "avatar_data": None,
             "app_settings": {},
@@ -149,6 +150,30 @@ class GitHubGistDatabase:
         except Exception as e:
             st.error(f"Error loading user interactions: {str(e)}")
             return pd.DataFrame(columns=['timestamp', 'name', 'email', 'session_id'])
+    
+    # 📊 NEW: Conversation analytics methods
+    def get_conversations(self) -> pd.DataFrame:
+        """Get all conversation data"""
+        try:
+            data = self._load_gist_data()
+            conversations = data.get("conversations", [])
+            
+            if conversations:
+                return pd.DataFrame(conversations)
+            else:
+                return pd.DataFrame(columns=[
+                    'timestamp', 'session_id', 'user_name', 'user_email', 
+                    'user_message', 'bot_response', 'detected_intent', 
+                    'response_length', 'message_length'
+                ])
+                
+        except Exception as e:
+            st.error(f"Error loading conversations: {str(e)}")
+            return pd.DataFrame(columns=[
+                'timestamp', 'session_id', 'user_name', 'user_email', 
+                'user_message', 'bot_response', 'detected_intent', 
+                'response_length', 'message_length'
+            ])
     
     def save_resume(self, filename: str, content: str, file_type: str, metadata: dict) -> bool:
         """Save resume content"""
@@ -291,6 +316,32 @@ def load_user_data_shared() -> pd.DataFrame:
     """Load user data from shared database"""
     db = get_shared_db()
     return db.get_user_interactions()
+
+# 📊 NEW: Conversation data functions
+def load_conversation_data_shared() -> pd.DataFrame:
+    """Load conversation data from shared database"""
+    db = get_shared_db()
+    return db.get_conversations()
+
+def analyze_intent_patterns(df: pd.DataFrame) -> Dict:
+    """Analyze intent patterns from conversation data"""
+    if df.empty:
+        return {}
+    
+    intent_counts = df['detected_intent'].value_counts().to_dict()
+    
+    # Calculate response efficiency
+    avg_response_length = df.groupby('detected_intent')['response_length'].mean().to_dict()
+    
+    # Find most common questions
+    common_questions = df['user_message'].value_counts().head(10).to_dict()
+    
+    return {
+        'intent_distribution': intent_counts,
+        'avg_response_length': avg_response_length,
+        'common_questions': common_questions,
+        'total_conversations': len(df)
+    }
 
 def save_avatar_shared(avatar_base64: str) -> bool:
     """Save avatar to shared database"""
@@ -593,6 +644,62 @@ class AniketChatbotAI:
     def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
 
+# 📊 NEW: Enhanced analytics functions
+def enhanced_analytics_tab():
+    """Enhanced analytics tab with live conversation data"""
+    st.header("📊 Live Analytics & Conversation Insights")
+    
+    # Load both user data and conversation data
+    user_data = load_user_data_shared()
+    conversation_data = load_conversation_data_shared()
+    
+    # Auto-refresh option
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        auto_refresh = st.checkbox("🔄 Auto-refresh (30s)", value=False)
+        if auto_refresh:
+            time.sleep(30)
+            st.rerun()
+    
+    with col2:
+        if st.button("🔄 Manual Refresh", type="primary"):
+            st.rerun()
+    
+    # Live conversation stream
+    st.subheader("💬 Live Conversation Stream")
+    
+    if not conversation_data.empty:
+        # Show last 20 conversations in real-time format
+        recent_conversations = conversation_data.sort_values('timestamp', ascending=False).head(20)
+        
+        for _, conv in recent_conversations.iterrows():
+            timestamp = pd.to_datetime(conv['timestamp']).strftime('%H:%M:%S')
+            
+            # Color code by intent
+            intent_colors = {
+                'hiring': '#28a745',
+                'skills': '#007bff', 
+                'projects': '#ffc107',
+                'education': '#17a2b8',
+                'general': '#6c757d'
+            }
+            color = intent_colors.get(conv['detected_intent'], '#6c757d')
+            
+            st.markdown(f"""
+            <div style="border-left: 4px solid {color}; padding: 10px; margin: 5px 0; background: #f8f9fa;">
+                <strong>{timestamp}</strong> - {conv['user_name']} 
+                <span style="color: {color}; font-weight: bold;">({conv['detected_intent']})</span><br>
+                <strong>Q:</strong> {conv['user_message'][:100]}{'...' if len(conv['user_message']) > 100 else ''}<br>
+                <strong>A:</strong> {conv['bot_response'][:150]}{'...' if len(conv['bot_response']) > 150 else ''}
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("🔍 Waiting for conversations to appear...")
+        st.markdown("**Test the connection:**")
+        st.markdown("1. Open your chatbot widget")
+        st.markdown("2. Have a conversation")
+        st.markdown("3. Return here to see it appear in real-time!")
+
 def main():
     """Admin Dashboard - Complete management interface"""
     st.set_page_config(
@@ -680,91 +787,19 @@ def main():
         st.markdown("### 🔗 Database Status")
         show_database_status()
         
-    # Main admin interface
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    # Main admin interface - UPDATED WITH NEW TAB
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📊 Analytics Dashboard", 
         "📄 Resume Management", 
         "🖼️ Avatar Management", 
         "🌐 Website Scraping", 
-        "⚙️ System Settings"
+        "⚙️ System Settings",
+        "📡 Live Monitoring"  # NEW TAB
     ])
     
-    # Tab 1: Analytics Dashboard
+    # Tab 1: Enhanced Analytics Dashboard
     with tab1:
-        st.header("📊 User Analytics & Insights")
-        
-        user_data = load_user_data_shared()
-        
-        if not user_data.empty:
-            # Convert timestamp column if it exists
-            if 'timestamp' in user_data.columns:
-                user_data['timestamp'] = pd.to_datetime(user_data['timestamp'], errors='coerce')
-            
-            # Main metrics
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3>{len(user_data)}</h3>
-                    <p>Total Visitors</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                unique_visitors = user_data['email'].nunique()
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3>{unique_visitors}</h3>
-                    <p>Unique Visitors</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                if 'timestamp' in user_data.columns:
-                    recent_visitors = user_data[user_data['timestamp'] > (datetime.now() - pd.Timedelta(days=7))]
-                    recent_count = len(recent_visitors)
-                else:
-                    recent_count = len(user_data.tail(10))  # Fallback
-                
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3>{recent_count}</h3>
-                    <p>Recent (7 days)</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col4:
-                return_visitors = len(user_data) - unique_visitors
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3>{return_visitors}</h3>
-                    <p>Return Visits</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Recent visitors table
-            st.subheader("👥 Recent Visitors")
-            display_data = user_data.copy()
-            if 'timestamp' in display_data.columns:
-                display_data['timestamp'] = display_data['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
-            display_data = display_data.sort_values('timestamp', ascending=False).head(10)
-            st.dataframe(display_data[['timestamp', 'name', 'email']], use_container_width=True)
-            
-            # Export functionality
-            st.subheader("📥 Data Export")
-            csv_data = export_user_data_shared()
-            if csv_data:
-                st.download_button(
-                    label="📥 Download Complete Visitor Data (CSV)",
-                    data=csv_data,
-                    file_name=f"aniket_portfolio_analytics_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    help="Download complete visitor analytics data"
-                )
-            
-        else:
-            st.info("📊 No visitor data available yet. The analytics will populate as users interact with the chatbot.")
+        enhanced_analytics_tab()
             
     # Tab 2: Resume Management
     with tab2:
@@ -1044,6 +1079,10 @@ def main():
                     else:
                         st.error("Failed to reset data")
 
+    # Tab 6: Live Monitoring - NEW TAB
+    with tab6:
+        live_monitoring_tab()
+
 def process_resume_file(uploaded_file):
     """Process uploaded resume file"""
     with st.spinner("Processing resume..."):
@@ -1114,4 +1153,181 @@ def scrape_website(url: str, max_pages: int):
             st.error("Could not retrieve content. Please verify the URL and try again.")
 
 if __name__ == "__main__":
-    main()
+    main()1:
+        st.subheader("🔄 Real-time Dashboard")
+    with col2:
+        if st.button("🔄 Refresh Data", type="primary"):
+            st.rerun()
+    
+    if not user_data.empty:
+        # Convert timestamp column if it exists
+        if 'timestamp' in user_data.columns:
+            user_data['timestamp'] = pd.to_datetime(user_data['timestamp'], errors='coerce')
+        
+        # Main metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>{len(user_data)}</h3>
+                <p>Total Visitors</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            unique_visitors = user_data['email'].nunique()
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>{unique_visitors}</h3>
+                <p>Unique Visitors</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            total_conversations = len(conversation_data)
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>{total_conversations}</h3>
+                <p>Total Messages</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            if not conversation_data.empty:
+                avg_session_length = conversation_data.groupby('session_id').size().mean()
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>{avg_session_length:.1f}</h3>
+                    <p>Avg Questions/Session</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>0</h3>
+                    <p>Avg Questions/Session</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Conversation Analytics Section
+        if not conversation_data.empty:
+            st.markdown("---")
+            st.subheader("🎯 Conversation Intelligence")
+            
+            # Convert timestamp for conversations
+            conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
+            
+            # Intent analysis
+            analytics = analyze_intent_patterns(conversation_data)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**📈 Most Asked Question Types**")
+                intent_df = pd.DataFrame(list(analytics['intent_distribution'].items()), 
+                                       columns=['Intent', 'Count'])
+                st.bar_chart(intent_df.set_index('Intent'))
+            
+            with col2:
+                st.markdown("**📝 Top 5 Common Questions**")
+                common_q = list(analytics['common_questions'].items())[:5]
+                for question, count in common_q:
+                    # Truncate long questions
+                    display_q = question[:50] + "..." if len(question) > 50 else question
+                    st.write(f"**{count}x:** {display_q}")
+            
+            # Recent conversations
+            st.subheader("💬 Live Conversation Feed")
+            
+            # Show last 10 conversations
+            recent_conversations = conversation_data.sort_values('timestamp', ascending=False).head(10)
+            
+            for _, conv in recent_conversations.iterrows():
+                with st.expander(f"🕐 {conv['timestamp'].strftime('%H:%M:%S')} - {conv['user_name']} ({conv['detected_intent']})"):
+                    st.write(f"**👤 User:** {conv['user_message']}")
+                    st.write(f"**🤖 Bot:** {conv['bot_response'][:200]}{'...' if len(conv['bot_response']) > 200 else ''}")
+                    st.write(f"**📊 Intent:** {conv['detected_intent']} | **Session:** {conv['session_id']}")
+        
+        else:
+            st.info("💬 No conversations recorded yet. Start using the chatbot to see analytics!")
+        
+        # Recent visitors table
+        st.subheader("👥 Recent Visitors")
+        display_data = user_data.copy()
+        if 'timestamp' in display_data.columns:
+            display_data['timestamp'] = display_data['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
+        display_data = display_data.sort_values('timestamp', ascending=False).head(10)
+        st.dataframe(display_data[['timestamp', 'name', 'email']], use_container_width=True)
+        
+        # Export functionality
+        st.subheader("📥 Data Export")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            csv_data = export_user_data_shared()
+            if csv_data:
+                st.download_button(
+                    label="📥 Download Visitor Data (CSV)",
+                    data=csv_data,
+                    file_name=f"aniket_visitors_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    help="Download visitor analytics data"
+                )
+        
+        with col2:
+            if not conversation_data.empty:
+                conv_csv = conversation_data.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Conversations (CSV)",
+                    data=conv_csv,
+                    file_name=f"aniket_conversations_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    help="Download complete conversation log"
+                )
+    
+    else:
+        st.info("📊 No visitor data available yet. The analytics will populate as users interact with the chatbot.")
+
+def live_monitoring_tab():
+    """Live monitoring tab"""
+    st.header("📡 Live Chatbot Monitoring")
+    
+    # Real-time status
+    st.subheader("🔴 Real-time Status")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        db = get_shared_db()
+        if db.use_gist:
+            st.success("🟢 Chatbot Connected")
+        else:
+            st.error("🔴 Chatbot Disconnected")
+    
+    with col2:
+        conversation_data = load_conversation_data_shared()
+        if not conversation_data.empty:
+            conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
+            last_activity = conversation_data['timestamp'].max()
+            if pd.notna(last_activity):
+                time_since = datetime.now() - last_activity.replace(tzinfo=None)
+                if time_since.total_seconds() < 300:  # 5 minutes
+                    st.success(f"🟢 Active {int(time_since.total_seconds())}s ago")
+                else:
+                    st.warning(f"🟡 Last seen {int(time_since.total_seconds()/60)}m ago")
+            else:
+                st.info("🟡 No recent activity")
+        else:
+            st.info("🟡 No activity recorded")
+    
+    with col3:
+        user_data = load_user_data_shared()
+        active_sessions = user_data['session_id'].nunique() if not user_data.empty else 0
+        st.info(f"👥 {active_sessions} Total Sessions")
+    
+    # Auto-refresh toggle
+    st.subheader("⚙️ Monitoring Settings")
+    
+    col1, col2 = st.columns(2)
+    with col
