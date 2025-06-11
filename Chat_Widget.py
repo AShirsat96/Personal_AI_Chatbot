@@ -3,6 +3,9 @@ import streamlit as st
 from typing import List, Dict, Optional
 from datetime import datetime
 import pickle
+import requests
+import json
+import pandas as pd
 
 # OpenAI for chat
 import openai
@@ -12,34 +15,150 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-# Create data directory for persistent storage
-DATA_DIR = "chatbot_data"
-RESUME_FILE = os.path.join(DATA_DIR, "resume_content.pkl")
-AVATAR_FILE = os.path.join(DATA_DIR, "avatar.pkl")
-USER_DATA_FILE = os.path.join(DATA_DIR, "user_interactions.csv")
+# GitHub Gist Database Class
+class GitHubGistDatabase:
+    """Free shared database using GitHub Gist"""
+    
+    def __init__(self):
+        # Get credentials from Streamlit secrets
+        self.github_token = st.secrets.get("GITHUB_TOKEN", "")
+        self.gist_id = st.secrets.get("GIST_ID", "")
+        
+        if not self.github_token or not self.gist_id:
+            self.use_gist = False
+        else:
+            self.use_gist = True
+            
+        self.headers = {
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+    
+    def _load_gist_data(self) -> Dict:
+        """Load current data from GitHub Gist"""
+        if not self.use_gist:
+            return self._get_local_data()
+            
+        try:
+            response = requests.get(
+                f"https://api.github.com/gists/{self.gist_id}",
+                headers=self.headers
+            )
+            
+            if response.status_code == 200:
+                gist_data = response.json()
+                content = gist_data["files"]["chatbot_data.json"]["content"]
+                return json.loads(content)
+            else:
+                return self._get_default_data()
+                
+        except Exception:
+            return self._get_local_data()
+    
+    def _save_gist_data(self, data: Dict) -> bool:
+        """Save data to GitHub Gist"""
+        if not self.use_gist:
+            return self._save_local_data(data)
+            
+        try:
+            payload = {
+                "files": {
+                    "chatbot_data.json": {
+                        "content": json.dumps(data, indent=2, default=str)
+                    }
+                }
+            }
+            
+            response = requests.patch(
+                f"https://api.github.com/gists/{self.gist_id}",
+                headers=self.headers,
+                json=payload
+            )
+            
+            return response.status_code == 200
+            
+        except Exception:
+            return self._save_local_data(data)
+    
+    def _get_default_data(self) -> Dict:
+        """Get default data structure"""
+        return {
+            "user_interactions": [],
+            "resume_content": None,
+            "avatar_data": None,
+            "app_settings": {},
+            "last_updated": datetime.now().isoformat()
+        }
+    
+    def _get_local_data(self) -> Dict:
+        """Fallback to session state storage"""
+        if "gist_data" not in st.session_state:
+            st.session_state.gist_data = self._get_default_data()
+        return st.session_state.gist_data
+    
+    def _save_local_data(self, data: Dict) -> bool:
+        """Save to session state as fallback"""
+        st.session_state.gist_data = data
+        return True
+    
+    def save_user_interaction(self, name: str, email: str, session_id: str) -> bool:
+        """Save user interaction"""
+        try:
+            data = self._load_gist_data()
+            
+            user_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "name": name,
+                "email": email,
+                "session_id": session_id
+            }
+            
+            data["user_interactions"].append(user_entry)
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception:
+            return False
+    
+    def get_avatar(self) -> Optional[str]:
+        """Get current avatar"""
+        try:
+            data = self._load_gist_data()
+            avatar_data = data.get("avatar_data")
+            
+            if avatar_data:
+                return avatar_data.get("avatar_base64")
+            return None
+            
+        except Exception:
+            return None
+    
+    def get_resume(self) -> Optional[Dict]:
+        """Get current resume"""
+        try:
+            data = self._load_gist_data()
+            return data.get("resume_content")
+            
+        except Exception:
+            return None
 
-# Ensure data directory exists
-os.makedirs(DATA_DIR, exist_ok=True)
+# Initialize shared database
+@st.cache_resource
+def get_shared_db():
+    """Get shared database instance"""
+    return GitHubGistDatabase()
 
-def load_saved_resume():
-    """Load saved resume content from persistent storage"""
-    try:
-        if os.path.exists(RESUME_FILE):
-            with open(RESUME_FILE, 'rb') as f:
-                return pickle.load(f)
-    except Exception:
-        return None
-    return None
+# Updated storage functions
+def save_user_info_shared(name: str, email: str, session_id: str) -> bool:
+    """Save user info to shared database"""
+    db = get_shared_db()
+    return db.save_user_interaction(name, email, session_id)
 
-def load_saved_avatar():
-    """Load saved avatar from persistent storage"""
-    try:
-        if os.path.exists(AVATAR_FILE):
-            with open(AVATAR_FILE, 'rb') as f:
-                return pickle.load(f)
-    except Exception:
-        return None
-    return None
+def load_avatar_shared() -> Optional[str]:
+    """Load avatar from shared database"""
+    db = get_shared_db()
+    return db.get_avatar()
 
 def is_valid_email(email):
     """Simple email validation"""
@@ -63,32 +182,6 @@ def is_valid_email(email):
     
     return True
 
-def save_user_info(name, email, timestamp=None):
-    """Save user information to CSV file"""
-    try:
-        import pandas as pd
-        
-        if timestamp is None:
-            timestamp = datetime.now().isoformat()
-        
-        user_data = {
-            'timestamp': [timestamp],
-            'name': [name],
-            'email': [email],
-            'session_id': [st.session_state.get('session_id', 'unknown')]
-        }
-        
-        df = pd.DataFrame(user_data)
-        
-        if os.path.exists(USER_DATA_FILE):
-            df.to_csv(USER_DATA_FILE, mode='a', header=False, index=False)
-        else:
-            df.to_csv(USER_DATA_FILE, mode='w', header=True, index=False)
-        
-        return True
-    except Exception:
-        return False
-
 class SimpleKnowledgeBase:
     """Simple text-based knowledge storage"""
     
@@ -99,9 +192,19 @@ class SimpleKnowledgeBase:
         self._load_saved_resume()
     
     def _load_saved_resume(self):
-        """Load saved resume content"""
-        self.resume_content = load_saved_resume()
-        if self.resume_content:
+        """Load saved resume content from shared database"""
+        db = get_shared_db()
+        resume_data = db.get_resume()
+        
+        if resume_data:
+            # Convert to expected format
+            self.resume_content = type('ResumeContent', (), {
+                'filename': resume_data['filename'],
+                'content': resume_data['content'],
+                'file_type': resume_data['file_type'],
+                'metadata': resume_data['metadata'],
+                'timestamp': datetime.fromisoformat(resume_data['uploaded_at'])
+            })()
             self._add_resume_to_chunks()
     
     def _add_resume_to_chunks(self):
@@ -453,9 +556,9 @@ def main():
     if "session_id" not in st.session_state:
         st.session_state.session_id = f"widget_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(datetime.now()) % 10000}"
     
-    # Load saved avatar
+    # Load saved avatar from shared database
     if "avatar_base64" not in st.session_state:
-        saved_avatar = load_saved_avatar()
+        saved_avatar = load_avatar_shared()
         if saved_avatar:
             st.session_state.avatar_base64 = saved_avatar
     
@@ -584,8 +687,8 @@ def main():
                 st.session_state.asking_for_email = False
                 st.session_state.user_info_collected = True
                 
-                # Save user info
-                save_user_info(st.session_state.user_name, st.session_state.user_email)
+                # Save user info to shared database
+                save_user_info_shared(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
                 
                 response = f"""Perfect! Thank you, {st.session_state.user_name}. I'm ready to answer questions about Aniket's professional background.
 
