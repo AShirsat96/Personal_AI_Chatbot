@@ -1149,7 +1149,7 @@ def main():
                 
                 response = f"""Perfect! Thank you, {st.session_state.user_name}. I'm ready to answer questions about Aniket's professional background.
 
-I can provide intelligent, contextual responses about Aniket's qualifications, experience, and why he'd be an excellent addition to your team.
+I'm powered by a hybrid AI system that provides intelligent, contextual responses about Aniket's qualifications, experience, and why he'd be an excellent addition to your team.
 
 **Try asking:** "Why should I hire Aniket?" or "What are his technical skills?"
 
