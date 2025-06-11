@@ -293,72 +293,20 @@ class SmartHybridChatbot:
         }
     
     def analyze_intent(self, user_input: str) -> str:
-        """Analyze user intent from input with enhanced natural language understanding"""
+        """Analyze user intent from input"""
         input_lower = user_input.lower()
         
-        # Enhanced conversation patterns
-        if any(pattern in input_lower for pattern in ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "what's up", "sup"]):
+        # Check for conversation patterns first
+        if any(pattern in input_lower for pattern in self.conversation_patterns["greetings"]):
             return "greeting"
-        elif any(pattern in input_lower for pattern in ["thank", "thanks", "appreciate", "grateful", "awesome", "cool", "nice", "great job"]):
+        elif any(pattern in input_lower for pattern in self.conversation_patterns["thanks"]):
             return "thanks"
-        elif any(pattern in input_lower for pattern in ["bye", "goodbye", "see you", "farewell", "take care", "gotta go", "talk later"]):
+        elif any(pattern in input_lower for pattern in self.conversation_patterns["goodbye"]):
             return "goodbye"
         
-        # Enhanced question patterns with more natural language
-        enhanced_patterns = {
-            "hiring": [
-                "hire", "why", "recommend", "choose", "recruit", "employ", "candidate", "fit", "right person",
-                "should we", "good choice", "worth it", "value", "benefit", "advantage", "perfect for"
-            ],
-            "skills": [
-                "skill", "technical", "programming", "tech", "abilities", "competencies", "expertise", "tools", "technologies",
-                "what can he do", "good at", "proficient", "experienced in", "knows how to"
-            ],
-            "education": [
-                "education", "school", "degree", "gpa", "university", "academic", "study", "learn", "college",
-                "where did he study", "educational background", "qualifications"
-            ],
-            "experience": [
-                "experience", "work", "job", "employment", "career", "professional", "background", "history",
-                "worked at", "previous", "past experience", "work history"
-            ],
-            "projects": [
-                "project", "research", "built", "created", "developed", "worked on", "achievement", "accomplishment",
-                "what has he done", "portfolio", "examples of work", "showcase"
-            ],
-            "personal": [
-                "hobby", "hobbies", "interest", "interests", "personal", "outside work", "free time", "activities",
-                "fun", "personality", "character", "who is he", "about him personally"
-            ],
-            "contact": [
-                "contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "hire him",
-                "how to reach", "connect with", "talk to", "meeting"
-            ],
-            "availability": [
-                "available", "start", "when", "timeline", "notice", "free", "open to",
-                "can he start", "availability", "ready to work"
-            ],
-            "salary": [
-                "salary", "compensation", "pay", "money", "cost", "rate", "price",
-                "how much", "expensive", "budget", "compensation expectations"
-            ],
-            "location": [
-                "location", "where", "based", "remote", "relocate", "move",
-                "lives", "located", "willing to move", "work from"
-            ],
-            "company_culture": [
-                "culture", "team", "environment", "fit", "values", "work style",
-                "team player", "cultural fit", "personality fit", "collaborative"
-            ],
-            "future": [
-                "future", "goals", "plans", "career path", "ambition", "vision",
-                "wants to do", "aspirations", "long term", "growth"
-            ]
-        }
-        
-        # Score intents based on enhanced patterns
+        # Check for question intents
         intent_scores = {}
-        for intent, patterns in enhanced_patterns.items():
+        for intent, patterns in self.intent_patterns.items():
             score = sum(1 for pattern in patterns if pattern in input_lower)
             if score > 0:
                 intent_scores[intent] = score
@@ -386,92 +334,66 @@ class SmartHybridChatbot:
         intent = self.analyze_intent(user_input)
         context = self.extract_context(user_input)
         
-        # Add conversational context awareness
-        input_lower = user_input.lower()
-        is_casual = any(word in input_lower for word in ["hey", "hi", "what's up", "sup", "cool", "awesome", "nice"])
-        is_formal = any(word in input_lower for word in ["please", "could you", "would you", "may I", "thank you very much"])
-        
-        # Generate base response with natural conversation flow
+        # Generate base response
         if intent == "greeting":
-            response = self.get_greeting_response(is_casual)
+            response = self.get_greeting_response()
         elif intent == "thanks":
-            response = self.get_thanks_response(is_casual)
+            response = self.get_thanks_response()
         elif intent == "goodbye":
-            response = self.get_goodbye_response(is_casual)
+            response = self.get_goodbye_response()
         elif intent == "hiring":
-            response = self.get_hiring_response(context, is_casual, is_formal)
+            response = self.get_hiring_response(context)
         elif intent == "skills":
-            response = self.get_skills_response(context, is_casual, is_formal)
+            response = self.get_skills_response(context)
         elif intent == "education":
-            response = self.get_education_response(context, is_casual, is_formal)
+            response = self.get_education_response(context)
         elif intent == "experience":
-            response = self.get_experience_response(context, is_casual, is_formal)
+            response = self.get_experience_response(context)
         elif intent == "projects":
-            response = self.get_projects_response(context, is_casual, is_formal)
+            response = self.get_projects_response(context)
         elif intent == "personal":
-            response = self.get_personal_response(context, is_casual, is_formal)
+            response = self.get_personal_response(context)
         elif intent == "contact":
-            response = self.get_contact_response(context, is_casual, is_formal)
+            response = self.get_contact_response(context)
         elif intent == "availability":
-            response = self.get_availability_response(context, is_casual, is_formal)
+            response = self.get_availability_response(context)
         elif intent == "salary":
-            response = self.get_salary_response(context, is_casual, is_formal)
+            response = self.get_salary_response(context)
         elif intent == "location":
-            response = self.get_location_response(context, is_casual, is_formal)
+            response = self.get_location_response(context)
         elif intent == "company_culture":
-            response = self.get_culture_response(context, is_casual, is_formal)
+            response = self.get_culture_response(context)
         elif intent == "future":
-            response = self.get_future_response(context, is_casual, is_formal)
+            response = self.get_future_response(context)
         else:
-            response = self.get_general_response(is_casual)
+            response = self.get_general_response()
             
         return response, intent
     
-    def get_greeting_response(self, is_casual: bool = False) -> str:
-        if is_casual:
-            return """Hey there! 👋 Great to meet you!
+    def get_greeting_response(self) -> str:
+        return """Hello! Great to meet you! 👋 
 
-I'm Aniket's AI assistant, and I'm here to chat about his professional background and what makes him such a great candidate.
+I'm here to help you learn about Aniket Shirsat's professional background and qualifications. 
 
-He's currently crushing it in his Master's program at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant. Pretty impressive, right?
-
-What would you like to know about him? His technical skills? Cool projects he's worked on? Or maybe why he'd be an awesome addition to your team?"""
-        else:
-            return """Hello! It's wonderful to meet you! 👋 
-
-I'm Aniket's AI assistant, and I'm here to help you learn about his professional background and qualifications. 
-
-Aniket is currently pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant. His combination of academic excellence and practical experience makes him quite remarkable.
+Aniket is currently pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant.
 
 What would you like to know about him? I can share details about his skills, experience, projects, or why he'd be an excellent addition to your team!"""
     
-    def get_thanks_response(self, is_casual: bool = False) -> str:
-        if is_casual:
-            return """You're totally welcome! 😊 Happy to help!
+    def get_thanks_response(self) -> str:
+        return """You're very welcome! 😊
 
-I love talking about Aniket - he's got such an impressive background. Got any other questions about his experience or what he's been working on? I'm here for it!"""
-        else:
-            return """You're very welcome! 😊
+I'm glad I could help you learn more about Aniket. If you have any other questions about his background, skills, projects, or qualifications, feel free to ask!
 
-I'm delighted I could help you learn more about Aniket. His background really speaks for itself - the combination of academic excellence and real-world impact is quite remarkable.
-
-Please feel free to ask about anything else you'd like to know - his technical expertise, project details, or career aspirations. I'm here to help!"""
+Is there anything specific about his experience or technical expertise you'd like to explore further?"""
     
-    def get_goodbye_response(self, is_casual: bool = False) -> str:
-        if is_casual:
-            return """Thanks for checking out Aniket! 👋
+    def get_goodbye_response(self) -> str:
+        return """Thank you for your interest in Aniket Shirsat! 👋
 
-Hope I gave you a good sense of what an awesome candidate he is. If you want to connect with him about opportunities, definitely reach out - he's actively looking and would love to chat!
+I hope the information was helpful in understanding his qualifications and potential value to your team. 
 
-Catch you later! 🚀"""
-        else:
-            return """Thank you so much for your interest in Aniket Shirsat! 👋
+If you'd like to connect with Aniket directly, please reach out through his professional channels. He's actively seeking opportunities and would love to discuss how his skills can contribute to your organization.
 
-I sincerely hope our conversation has given you valuable insights into his qualifications and the exceptional value he could bring to your organization. 
-
-If you'd like to connect with Aniket directly, please don't hesitate to reach out through his professional channels. He's actively pursuing new opportunities and would be thrilled to discuss how his skills and experience align with your needs.
-
-Wishing you a wonderful day ahead!"""
+Have a great day!"""
     
     def get_hiring_response(self, context: Dict[str, bool]) -> str:
         base_response = f"""🎯 **Why Aniket Shirsat is an Exceptional Hire**
