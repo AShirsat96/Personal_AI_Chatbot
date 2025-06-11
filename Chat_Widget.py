@@ -1180,13 +1180,7 @@ def main():
                 # 🔗 SAVE USER INFO TO SHARED DATABASE
                 save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
                 
-                response = f"""Perfect! Thank you, {st.session_state.user_name}. I'm ready to answer questions about Aniket's professional background.
-
-I can provide intelligent, contextual responses about Aniket's qualifications, experience, and why he'd be an excellent addition to your team.
-
-**Try asking:** "Why should I hire Aniket?" or "What are his technical skills?"
-
-What would you like to know?"""
+                response = f"Perfect! Thank you, {st.session_state.user_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
                 
                 st.session_state.messages.append({"role": "assistant", "content": response})
             elif is_valid_email(prompt.strip()):
@@ -1198,13 +1192,7 @@ What would you like to know?"""
                 # 🔗 SAVE USER INFO TO SHARED DATABASE
                 save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
                 
-                response = f"""Perfect! Thank you, {st.session_state.user_name}. I'm ready to answer questions about Aniket's professional background.
-
-I can provide intelligent, contextual responses about Aniket's qualifications, experience, and why he'd be an excellent addition to your team.
-
-**Try asking:** "Why should I hire Aniket?" or "What are his technical skills?"
-
-What would you like to know?"""
+                response = f"Perfect! Thank you, {st.session_state.user_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
                 
                 st.session_state.messages.append({"role": "assistant", "content": response})
             else:
