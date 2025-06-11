@@ -889,7 +889,7 @@ def main():
     # Main chat container
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    # Chat header with dynamic avatar - CLEAN VERSION (no "Connected to Dashboard")
+    # Chat header - FIXED VERSION (no "Connected to Dashboard")
     shared_avatar = get_shared_avatar()
     if shared_avatar:
         avatar_src = shared_avatar
@@ -910,7 +910,7 @@ def main():
     # Messages container
     st.markdown('<div class="message-container">', unsafe_allow_html=True)
     
-    # Display messages - NO MORE YELLOW WELCOME BOXES
+    # Display messages - FIXED VERSION (no yellow boxes, consistent avatars)
     for message in st.session_state.messages:
         if message["role"] == "assistant":
             # Use the same avatar as header for consistency
