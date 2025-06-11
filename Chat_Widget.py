@@ -828,16 +828,6 @@ def main():
             line-height: 1.4;
         }
         
-        .user-info-prompt {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            text-align: center;
-            font-size: 14px;
-        }
-        
         .suggested-questions {
             padding: 10px 20px;
             border-top: 1px solid #e1e8ed;
@@ -899,7 +889,7 @@ def main():
     # Main chat container
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    # Chat header with dynamic avatar
+    # Chat header with dynamic avatar - CLEAN VERSION (no "Connected to Dashboard")
     shared_avatar = get_shared_avatar()
     if shared_avatar:
         avatar_src = shared_avatar
@@ -912,7 +902,7 @@ def main():
         <img src="{avatar_src}" class="chat-avatar" alt="Aniket's Avatar">
         <div class="chat-title">
             <h3>Aniket's AI Assistant</h3>
-            <p class="chat-subtitle">🔗 Connected to Dashboard</p>
+            <p class="chat-subtitle">Intelligent responses powered by hybrid AI</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -920,28 +910,18 @@ def main():
     # Messages container
     st.markdown('<div class="message-container">', unsafe_allow_html=True)
     
-    # User info collection prompt
-    if not st.session_state.user_info_collected:
-        if st.session_state.asking_for_name:
-            st.markdown("""
-            <div class="user-info-prompt">
-                👋 <strong>Welcome!</strong> Please share your name to get started
-            </div>
-            """, unsafe_allow_html=True)
-        elif st.session_state.asking_for_email:
-            st.markdown(f"""
-            <div class="user-info-prompt">
-                📧 <strong>Nice to meet you, {st.session_state.user_name}!</strong><br>
-                Could you also share your email address?
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Display messages
+    # Display messages - NO MORE YELLOW WELCOME BOXES
     for message in st.session_state.messages:
         if message["role"] == "assistant":
+            # Use the same avatar as header for consistency
+            if shared_avatar:
+                bot_avatar_display = f'<img src="{shared_avatar}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">'
+            else:
+                bot_avatar_display = '<div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">🤖</div>'
+            
             message_html = f"""
             <div class="assistant-message">
-                <div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0;">🤖</div>
+                {bot_avatar_display}
                 <div class="message-bubble">{message["content"]}</div>
             </div>
             """
@@ -1061,16 +1041,8 @@ What would you like to know?"""
             )
         
         st.rerun()
-    
-    # Footer with connection status
-    db = get_shared_db()
-    connection_status = "🟢 Connected" if db.use_gist else "🟡 Local Mode"
-    
-    st.markdown(f"""
-    <div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 20px; padding: 10px;">
-        🤖 Powered by Hybrid AI • {connection_status} • Aniket Shirsat Portfolio Assistant
-    </div>
-    """, unsafe_allow_html=True)
+
+    # NO FOOTER - Clean interface ends here
 
 if __name__ == "__main__":
     main()
