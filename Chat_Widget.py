@@ -731,25 +731,68 @@ def main():
         layout="centered"
     )
     
-    # Hide Streamlit UI elements
+    # AGGRESSIVE CSS TO REMOVE ALL EMPTY SPACE
     st.markdown("""
     <style>
-        .stApp > header {visibility: hidden;}
-        .stApp > .main > div:nth-child(1) {padding-top: 0rem;}
-        .stDeployButton {display: none;}
-        .stDecoration {display: none;}
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        .stApp > .main {max-width: 100%; padding: 0;}
-        .stApp {background: #f5f7fa;}
+        /* AGGRESSIVE REMOVAL OF ALL STREAMLIT PADDING/MARGINS */
+        .stApp {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #f5f7fa;
+        }
         
+        .stApp > header {
+            visibility: hidden !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        .stApp > .main {
+            margin: 0 !important;
+            padding: 0 !important;
+            max-width: 100% !important;
+        }
+        
+        .stApp > .main > div:nth-child(1) {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Remove all Streamlit default spacing */
+        .block-container {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+        }
+        
+        .css-1d391kg, .css-k1ih3n, .css-18e3th9 {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        div[data-testid="stVerticalBlock"] > div:first-child {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        /* Hide all Streamlit UI elements */
+        .stDeployButton {display: none !important;}
+        .stDecoration {display: none !important;}
+        #MainMenu {visibility: hidden !important;}
+        footer {visibility: hidden !important;}
+        div[data-testid="stToolbar"] {display: none !important;}
+        div[data-testid="stDecoration"] {display: none !important;}
+        div[data-testid="stStatusWidget"] {display: none !important;}
+        
+        /* FIXED: Chat container with NO TOP MARGIN */
         .chat-container {
             background: white;
             border-radius: 20px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             overflow: hidden;
             max-width: 420px;
-            margin: 20px auto;
+            margin: 0 auto !important;  /* CHANGED: Removed 20px top margin */
             border: 1px solid #e1e8ed;
         }
         
@@ -889,7 +932,7 @@ def main():
     # Main chat container
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    # Chat header - FIXED VERSION (no "Connected to Dashboard")
+    # Chat header - CLEAN VERSION (no subtitle)
     shared_avatar = get_shared_avatar()
     if shared_avatar:
         avatar_src = shared_avatar
