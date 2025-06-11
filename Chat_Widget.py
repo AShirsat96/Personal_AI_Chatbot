@@ -902,7 +902,6 @@ def main():
         <img src="{avatar_src}" class="chat-avatar" alt="Aniket's Avatar">
         <div class="chat-title">
             <h3>Aniket's AI Assistant</h3>
-            <p class="chat-subtitle">Intelligent responses powered by hybrid AI</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
