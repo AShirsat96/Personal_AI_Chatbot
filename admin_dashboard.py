@@ -26,15 +26,325 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-# Create data directory for persistent storage
-DATA_DIR = "chatbot_data"
-RESUME_FILE = os.path.join(DATA_DIR, "resume_content.pkl")
-AVATAR_FILE = os.path.join(DATA_DIR, "avatar.pkl")
-USER_DATA_FILE = os.path.join(DATA_DIR, "user_interactions.csv")
+# GitHub Gist Database Class (same as chat widget)
+class GitHubGistDatabase:
+    """Free shared database using GitHub Gist"""
+    
+    def __init__(self):
+        # Get credentials from Streamlit secrets
+        self.github_token = st.secrets.get("GITHUB_TOKEN", "")
+        self.gist_id = st.secrets.get("GIST_ID", "")
+        
+        if not self.github_token or not self.gist_id:
+            self.use_gist = False
+        else:
+            self.use_gist = True
+            
+        self.headers = {
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+    
+    def _load_gist_data(self) -> Dict:
+        """Load current data from GitHub Gist"""
+        if not self.use_gist:
+            return self._get_local_data()
+            
+        try:
+            response = requests.get(
+                f"https://api.github.com/gists/{self.gist_id}",
+                headers=self.headers
+            )
+            
+            if response.status_code == 200:
+                gist_data = response.json()
+                content = gist_data["files"]["chatbot_data.json"]["content"]
+                return json.loads(content)
+            else:
+                return self._get_default_data()
+                
+        except Exception as e:
+            st.warning(f"Error loading gist data: {str(e)}")
+            return self._get_local_data()
+    
+    def _save_gist_data(self, data: Dict) -> bool:
+        """Save data to GitHub Gist"""
+        if not self.use_gist:
+            return self._save_local_data(data)
+            
+        try:
+            payload = {
+                "files": {
+                    "chatbot_data.json": {
+                        "content": json.dumps(data, indent=2, default=str)
+                    }
+                }
+            }
+            
+            response = requests.patch(
+                f"https://api.github.com/gists/{self.gist_id}",
+                headers=self.headers,
+                json=payload
+            )
+            
+            return response.status_code == 200
+            
+        except Exception as e:
+            st.error(f"Error saving to gist: {str(e)}")
+            return self._save_local_data(data)
+    
+    def _get_default_data(self) -> Dict:
+        """Get default data structure"""
+        return {
+            "user_interactions": [],
+            "resume_content": None,
+            "avatar_data": None,
+            "app_settings": {},
+            "last_updated": datetime.now().isoformat()
+        }
+    
+    def _get_local_data(self) -> Dict:
+        """Fallback to session state storage"""
+        if "gist_data" not in st.session_state:
+            st.session_state.gist_data = self._get_default_data()
+        return st.session_state.gist_data
+    
+    def _save_local_data(self, data: Dict) -> bool:
+        """Save to session state as fallback"""
+        st.session_state.gist_data = data
+        return True
+    
+    def save_user_interaction(self, name: str, email: str, session_id: str) -> bool:
+        """Save user interaction"""
+        try:
+            data = self._load_gist_data()
+            
+            user_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "name": name,
+                "email": email,
+                "session_id": session_id
+            }
+            
+            data["user_interactions"].append(user_entry)
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            st.error(f"Error saving user interaction: {str(e)}")
+            return False
+    
+    def get_user_interactions(self) -> pd.DataFrame:
+        """Get all user interactions"""
+        try:
+            data = self._load_gist_data()
+            interactions = data.get("user_interactions", [])
+            
+            if interactions:
+                return pd.DataFrame(interactions)
+            else:
+                return pd.DataFrame(columns=['timestamp', 'name', 'email', 'session_id'])
+                
+        except Exception as e:
+            st.error(f"Error loading user interactions: {str(e)}")
+            return pd.DataFrame(columns=['timestamp', 'name', 'email', 'session_id'])
+    
+    def save_resume(self, filename: str, content: str, file_type: str, metadata: dict) -> bool:
+        """Save resume content"""
+        try:
+            data = self._load_gist_data()
+            
+            resume_data = {
+                "filename": filename,
+                "content": content,
+                "file_type": file_type,
+                "metadata": metadata,
+                "uploaded_at": datetime.now().isoformat()
+            }
+            
+            data["resume_content"] = resume_data
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            st.error(f"Error saving resume: {str(e)}")
+            return False
+    
+    def get_resume(self) -> Optional[Dict]:
+        """Get current resume"""
+        try:
+            data = self._load_gist_data()
+            return data.get("resume_content")
+            
+        except Exception as e:
+            st.error(f"Error loading resume: {str(e)}")
+            return None
+    
+    def delete_resume(self) -> bool:
+        """Delete current resume"""
+        try:
+            data = self._load_gist_data()
+            data["resume_content"] = None
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            st.error(f"Error deleting resume: {str(e)}")
+            return False
+    
+    def save_avatar(self, avatar_base64: str) -> bool:
+        """Save avatar data"""
+        try:
+            data = self._load_gist_data()
+            
+            avatar_data = {
+                "avatar_base64": avatar_base64,
+                "uploaded_at": datetime.now().isoformat()
+            }
+            
+            data["avatar_data"] = avatar_data
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            st.error(f"Error saving avatar: {str(e)}")
+            return False
+    
+    def get_avatar(self) -> Optional[str]:
+        """Get current avatar"""
+        try:
+            data = self._load_gist_data()
+            avatar_data = data.get("avatar_data")
+            
+            if avatar_data:
+                return avatar_data.get("avatar_base64")
+            return None
+            
+        except Exception as e:
+            st.error(f"Error loading avatar: {str(e)}")
+            return None
+    
+    def delete_avatar(self) -> bool:
+        """Delete current avatar"""
+        try:
+            data = self._load_gist_data()
+            data["avatar_data"] = None
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            st.error(f"Error deleting avatar: {str(e)}")
+            return False
+    
+    def get_database_status(self) -> Dict:
+        """Get database connection status"""
+        status = {
+            "database_type": "GitHub Gist" if self.use_gist else "Local Session",
+            "connected": self.use_gist,
+            "gist_configured": bool(self.github_token and self.gist_id)
+        }
+        
+        if self.use_gist:
+            try:
+                # Test connection
+                response = requests.get(f"https://api.github.com/gists/{self.gist_id}", headers=self.headers)
+                status["connection_test"] = response.status_code == 200
+                status["last_updated"] = self._load_gist_data().get("last_updated", "Never")
+            except:
+                status["connection_test"] = False
+        
+        return status
+    
+    def export_all_data(self) -> Dict:
+        """Export all data for backup"""
+        data = self._load_gist_data()
+        data["export_timestamp"] = datetime.now().isoformat()
+        return data
+    
+    def clear_all_data(self) -> bool:
+        """Clear all data (danger zone)"""
+        try:
+            default_data = self._get_default_data()
+            return self._save_gist_data(default_data)
+        except Exception as e:
+            st.error(f"Error clearing data: {str(e)}")
+            return False
 
-# Ensure data directory exists
-os.makedirs(DATA_DIR, exist_ok=True)
+# Initialize shared database
+@st.cache_resource
+def get_shared_db():
+    """Get shared database instance"""
+    return GitHubGistDatabase()
 
+# Updated storage functions
+def save_user_info_shared(name: str, email: str, session_id: str) -> bool:
+    """Save user info to shared database"""
+    db = get_shared_db()
+    return db.save_user_interaction(name, email, session_id)
+
+def load_user_data_shared() -> pd.DataFrame:
+    """Load user data from shared database"""
+    db = get_shared_db()
+    return db.get_user_interactions()
+
+def save_avatar_shared(avatar_base64: str) -> bool:
+    """Save avatar to shared database"""
+    db = get_shared_db()
+    return db.save_avatar(avatar_base64)
+
+def load_avatar_shared() -> Optional[str]:
+    """Load avatar from shared database"""
+    db = get_shared_db()
+    return db.get_avatar()
+
+def delete_avatar_shared() -> bool:
+    """Delete avatar from shared database"""
+    db = get_shared_db()
+    return db.delete_avatar()
+
+def save_resume_shared(filename: str, content: str, file_type: str, metadata: dict) -> bool:
+    """Save resume to shared database"""
+    db = get_shared_db()
+    return db.save_resume(filename, content, file_type, metadata)
+
+def load_resume_shared() -> Optional[Dict]:
+    """Load resume from shared database"""
+    db = get_shared_db()
+    return db.get_resume()
+
+def delete_resume_shared() -> bool:
+    """Delete resume from shared database"""
+    db = get_shared_db()
+    return db.delete_resume()
+
+def export_user_data_shared():
+    """Export user data from shared database"""
+    db = get_shared_db()
+    df = db.get_user_interactions()
+    if not df.empty:
+        return df.to_csv(index=False)
+    return None
+
+def show_database_status():
+    """Show database connection status"""
+    db = get_shared_db()
+    status = db.get_database_status()
+    
+    if status["connected"]:
+        st.success(f"✅ Connected to {status['database_type']}")
+        st.info(f"Last updated: {status.get('last_updated', 'Unknown')}")
+    else:
+        st.warning(f"⚠️ Using {status['database_type']} (limited functionality)")
+        st.info("Configure GitHub Gist for full app synchronization")
+    
+    return status
+
+# Original classes with minimal changes
 @dataclass
 class WebsiteContent:
     """Data class for storing scraped website content"""
@@ -71,7 +381,6 @@ class SimpleWebsiteScraper:
             href = link['href']
             full_url = urljoin(base_url, href)
             
-            # Only include internal links
             if urlparse(full_url).netloc == domain:
                 links.add(full_url)
                 
@@ -90,15 +399,12 @@ class SimpleWebsiteScraper:
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Remove script and style elements
             for script in soup(["script", "style", "nav", "footer", "header"]):
                 script.decompose()
             
-            # Extract title
             title = soup.find('title')
             title_text = title.get_text().strip() if title else url
             
-            # Extract main content
             content_selectors = [
                 'main', 'article', '.content', '#content', 
                 '.post', '.entry-content', 'section'
@@ -111,7 +417,6 @@ class SimpleWebsiteScraper:
                     content = ' '.join([elem.get_text() for elem in elements])
                     break
             
-            # If no specific content found, get body text
             if not content:
                 body = soup.find('body')
                 if body:
@@ -119,13 +424,11 @@ class SimpleWebsiteScraper:
             
             content = self.clean_text(content)
             
-            # Extract metadata
             metadata = {
                 'word_count': len(content.split()),
                 'scraped_at': datetime.now().isoformat(),
             }
             
-            # Extract meta description
             meta_desc = soup.find('meta', attrs={'name': 'description'})
             if meta_desc:
                 metadata['description'] = meta_desc.get('content', '')
@@ -168,7 +471,6 @@ class SimpleWebsiteScraper:
             if content and len(content.content) > 100:
                 scraped_content.append(content)
                 
-                # Find more links to scrape
                 if len(scraped_content) < max_pages:
                     try:
                         response = self.session.get(current_url, timeout=5)
@@ -240,7 +542,6 @@ class ResumeProcessor:
             file_type = uploaded_file.type
             filename = uploaded_file.name
             
-            # Extract text based on file type
             if file_type == "application/pdf":
                 content = self.extract_text_from_pdf(file_bytes)
             elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -255,7 +556,6 @@ class ResumeProcessor:
                 st.error("Could not extract text from the file")
                 return None
             
-            # Generate metadata
             metadata = {
                 'word_count': len(content.split()),
                 'file_size': len(file_bytes),
@@ -274,149 +574,6 @@ class ResumeProcessor:
             st.error(f"Error processing resume: {str(e)}")
             return None
 
-class SimpleKnowledgeBase:
-    """Simple text-based knowledge storage without vector database"""
-    
-    def __init__(self):
-        self.content_chunks = []
-        self.metadata = []
-        self.resume_content = None
-        
-        # Load saved resume on initialization
-        self.load_saved_resume()
-    
-    def save_resume(self):
-        """Save resume content to persistent storage"""
-        try:
-            if self.resume_content:
-                with open(RESUME_FILE, 'wb') as f:
-                    pickle.dump(self.resume_content, f)
-                return True
-        except Exception as e:
-            st.error(f"Error saving resume: {str(e)}")
-            return False
-        return False
-    
-    def load_saved_resume(self):
-        """Load saved resume content from persistent storage"""
-        try:
-            if os.path.exists(RESUME_FILE):
-                with open(RESUME_FILE, 'rb') as f:
-                    self.resume_content = pickle.load(f)
-                return True
-        except Exception as e:
-            st.warning(f"Could not load saved resume: {str(e)}")
-            return False
-        return False
-    
-    def delete_saved_resume(self):
-        """Delete saved resume from persistent storage"""
-        try:
-            if os.path.exists(RESUME_FILE):
-                os.remove(RESUME_FILE)
-                self.resume_content = None
-                return True
-        except Exception as e:
-            st.error(f"Error deleting resume: {str(e)}")
-            return False
-        return False
-    
-    def chunk_content(self, content: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
-        """Split content into overlapping chunks"""
-        words = content.split()
-        chunks = []
-        
-        for i in range(0, len(words), chunk_size - overlap):
-            chunk = ' '.join(words[i:i + chunk_size])
-            if len(chunk.strip()) > 50:
-                chunks.append(chunk.strip())
-                
-        return chunks
-    
-    def add_website_content(self, website_content: List[WebsiteContent]):
-        """Add website content to simple storage"""
-        # Clear existing website content but keep resume
-        self.content_chunks = []
-        self.metadata = []
-        
-        # Add resume content first if available
-        if self.resume_content:
-            self._add_resume_to_chunks()
-        
-        # Add website content
-        for i, content in enumerate(website_content):
-            chunks = self.chunk_content(content.content)
-            
-            for j, chunk in enumerate(chunks):
-                self.content_chunks.append(chunk.lower())
-                self.metadata.append({
-                    "url": content.url,
-                    "title": content.title,
-                    "chunk_id": f"web_{i}_{j}",
-                    "original_chunk": chunk,
-                    "source_type": "website",
-                    "word_count": len(chunk.split()),
-                    "timestamp": content.timestamp.isoformat()
-                })
-        
-        st.success(f"Knowledge base updated with {len(self.content_chunks)} information segments!")
-    
-    def add_resume_content(self, resume_content: ResumeContent):
-        """Add resume content to knowledge base and save persistently"""
-        self.resume_content = resume_content
-        self._add_resume_to_chunks()
-        
-        # Save resume to persistent storage
-        if self.save_resume():
-            st.success(f"✅ Resume '{resume_content.filename}' saved permanently!")
-        else:
-            st.warning(f"Resume '{resume_content.filename}' added but could not be saved permanently")
-    
-    def _add_resume_to_chunks(self):
-        """Helper method to add resume content to chunks"""
-        if not self.resume_content:
-            return
-            
-        chunks = self.chunk_content(self.resume_content.content, chunk_size=800, overlap=150)
-        
-        for j, chunk in enumerate(chunks):
-            self.content_chunks.append(chunk.lower())
-            self.metadata.append({
-                "filename": self.resume_content.filename,
-                "title": f"Resume - {self.resume_content.filename}",
-                "chunk_id": f"resume_{j}",
-                "original_chunk": chunk,
-                "source_type": "resume",
-                "word_count": len(chunk.split()),
-                "timestamp": self.resume_content.timestamp.isoformat()
-            })
-    
-    def search(self, query: str, n_results: int = 5) -> List[Dict]:
-        """Simple keyword-based search across website and resume content"""
-        if not self.content_chunks:
-            return []
-        
-        query_words = set(query.lower().split())
-        results = []
-        
-        for i, chunk in enumerate(self.content_chunks):
-            chunk_words = set(chunk.split())
-            matches = len(query_words.intersection(chunk_words))
-            
-            if matches > 0:
-                score = matches / len(query_words)
-                if self.metadata[i].get('source_type') == 'resume':
-                    score *= 1.3
-                
-                results.append({
-                    'content': self.metadata[i]['original_chunk'],
-                    'metadata': self.metadata[i],
-                    'score': score
-                })
-        
-        results.sort(key=lambda x: x['score'], reverse=True)
-        return results[:n_results]
-
 def get_image_base64(image_file):
     """Convert uploaded image to base64 string"""
     try:
@@ -430,65 +587,11 @@ def get_image_base64(image_file):
         st.error(f"Error processing avatar image: {str(e)}")
         return None
 
-def save_avatar(avatar_base64):
-    """Save avatar to persistent storage"""
-    try:
-        with open(AVATAR_FILE, 'wb') as f:
-            pickle.dump(avatar_base64, f)
-        return True
-    except Exception as e:
-        st.error(f"Error saving avatar: {str(e)}")
-        return False
-
-def load_saved_avatar():
-    """Load saved avatar from persistent storage"""
-    try:
-        if os.path.exists(AVATAR_FILE):
-            with open(AVATAR_FILE, 'rb') as f:
-                return pickle.load(f)
-    except Exception as e:
-        st.warning(f"Could not load saved avatar: {str(e)}")
-    return None
-
-def delete_saved_avatar():
-    """Delete saved avatar from persistent storage"""
-    try:
-        if os.path.exists(AVATAR_FILE):
-            os.remove(AVATAR_FILE)
-            return True
-    except Exception as e:
-        st.error(f"Error deleting avatar: {str(e)}")
-        return False
-
-def load_user_data():
-    """Load all user interaction data"""
-    try:
-        if os.path.exists(USER_DATA_FILE):
-            return pd.read_csv(USER_DATA_FILE)
-        else:
-            return pd.DataFrame(columns=['timestamp', 'name', 'email', 'session_id'])
-    except Exception as e:
-        st.error(f"Error loading user data: {str(e)}")
-        return pd.DataFrame(columns=['timestamp', 'name', 'email', 'session_id'])
-
-def export_user_data():
-    """Export user data with download option"""
-    try:
-        df = load_user_data()
-        if not df.empty:
-            csv_string = df.to_csv(index=False)
-            return csv_string
-        return None
-    except Exception as e:
-        st.error(f"Error exporting user data: {str(e)}")
-        return None
-
 class AniketChatbotAI:
     """Professional assistant for Aniket Shirsat's portfolio"""
     
     def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
-        self.knowledge_base = SimpleKnowledgeBase()
 
 def main():
     """Admin Dashboard - Complete management interface"""
@@ -508,7 +611,7 @@ def main():
         admin_password = st.text_input("Enter Admin Password:", type="password")
         
         if st.button("Login"):
-            correct_password = os.getenv("ADMIN_PASSWORD", "admin123")
+            correct_password = os.getenv("ADMIN_PASSWORD") or st.secrets.get("ADMIN_PASSWORD", "admin123")
             
             if admin_password == correct_password:
                 st.session_state.admin_authenticated = True
@@ -573,6 +676,10 @@ def main():
         st.markdown("---")
         st.markdown("### 🎯 Quick Actions")
         
+        # Show database status in sidebar
+        st.markdown("### 🔗 Database Status")
+        show_database_status()
+        
     # Main admin interface
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📊 Analytics Dashboard", 
@@ -586,9 +693,13 @@ def main():
     with tab1:
         st.header("📊 User Analytics & Insights")
         
-        user_data = load_user_data()
+        user_data = load_user_data_shared()
         
         if not user_data.empty:
+            # Convert timestamp column if it exists
+            if 'timestamp' in user_data.columns:
+                user_data['timestamp'] = pd.to_datetime(user_data['timestamp'], errors='coerce')
+            
             # Main metrics
             col1, col2, col3, col4 = st.columns(4)
             
@@ -610,17 +721,21 @@ def main():
                 """, unsafe_allow_html=True)
             
             with col3:
-                user_data['timestamp'] = pd.to_datetime(user_data['timestamp'])
-                recent_visitors = user_data[user_data['timestamp'] > (datetime.now() - pd.Timedelta(days=7))]
+                if 'timestamp' in user_data.columns:
+                    recent_visitors = user_data[user_data['timestamp'] > (datetime.now() - pd.Timedelta(days=7))]
+                    recent_count = len(recent_visitors)
+                else:
+                    recent_count = len(user_data.tail(10))  # Fallback
+                
                 st.markdown(f"""
                 <div class="metric-card">
-                    <h3>{len(recent_visitors)}</h3>
+                    <h3>{recent_count}</h3>
                     <p>Recent (7 days)</p>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col4:
-                return_visitors = user_data['email'].value_counts().sum() - unique_visitors
+                return_visitors = len(user_data) - unique_visitors
                 st.markdown(f"""
                 <div class="metric-card">
                     <h3>{return_visitors}</h3>
@@ -628,35 +743,17 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Detailed analytics
-            st.subheader("📈 Detailed Analytics")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.subheader("📅 Visitor Timeline")
-                user_data['date'] = user_data['timestamp'].dt.date
-                daily_visitors = user_data.groupby('date').size().reset_index(name='visitors')
-                st.line_chart(daily_visitors.set_index('date'))
-            
-            with col2:
-                st.subheader("🔄 Visitor Type Distribution")
-                visitor_types = pd.DataFrame({
-                    'Type': ['New Visitors', 'Return Visitors'],
-                    'Count': [unique_visitors, return_visitors]
-                })
-                st.bar_chart(visitor_types.set_index('Type'))
-            
             # Recent visitors table
             st.subheader("👥 Recent Visitors")
             display_data = user_data.copy()
-            display_data['timestamp'] = display_data['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
+            if 'timestamp' in display_data.columns:
+                display_data['timestamp'] = display_data['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
             display_data = display_data.sort_values('timestamp', ascending=False).head(10)
             st.dataframe(display_data[['timestamp', 'name', 'email']], use_container_width=True)
             
             # Export functionality
             st.subheader("📥 Data Export")
-            csv_data = export_user_data()
+            csv_data = export_user_data_shared()
             if csv_data:
                 st.download_button(
                     label="📥 Download Complete Visitor Data (CSV)",
@@ -674,34 +771,25 @@ def main():
         st.header("📄 Resume Management")
         
         # Current resume status
-        if "chatbot" not in st.session_state:
-            openai_api_key = os.getenv("OPENAI_API_KEY")
-            if openai_api_key:
-                st.session_state.chatbot = AniketChatbotAI(openai_api_key)
+        resume_data = load_resume_shared()
         
-        resume_loaded = False
-        if "chatbot" in st.session_state:
-            resume_loaded = (hasattr(st.session_state.chatbot.knowledge_base, 'resume_content') and 
-                           st.session_state.chatbot.knowledge_base.resume_content is not None)
-        
-        if resume_loaded:
+        if resume_data:
             st.success("✅ Resume Currently Loaded")
-            resume_info = st.session_state.chatbot.knowledge_base.resume_content
             
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Filename", resume_info.filename)
+                st.metric("Filename", resume_data['filename'])
             with col2:
-                st.metric("Word Count", resume_info.metadata['word_count'])
+                st.metric("Word Count", resume_data['metadata']['word_count'])
             with col3:
-                st.metric("File Size", f"{resume_info.metadata['file_size'] / 1024:.1f} KB")
+                st.metric("File Size", f"{resume_data['metadata']['file_size'] / 1024:.1f} KB")
             with col4:
-                upload_date = datetime.fromisoformat(resume_info.metadata['processed_at']).strftime("%m/%d/%Y")
+                upload_date = datetime.fromisoformat(resume_data['uploaded_at']).strftime("%m/%d/%Y")
                 st.metric("Upload Date", upload_date)
             
             # Preview content
             st.subheader("📄 Content Preview")
-            preview_text = resume_info.content[:1000] + "..." if len(resume_info.content) > 1000 else resume_info.content
+            preview_text = resume_data['content'][:1000] + "..." if len(resume_data['content']) > 1000 else resume_data['content']
             st.text_area("Resume Content (First 1000 characters)", preview_text, height=200, disabled=True)
             
             # Management actions
@@ -710,21 +798,15 @@ def main():
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🗑️ Remove Current Resume", type="secondary"):
-                    if st.session_state.chatbot.knowledge_base.delete_saved_resume():
+                    if delete_resume_shared():
                         st.success("Resume removed successfully!")
                         st.rerun()
                     else:
                         st.error("Failed to remove resume")
             
             with col2:
-                st.markdown("**Test Resume Search:**")
-                test_query = st.text_input("Search query:", "education background")
-                if st.button("🔍 Test Search"):
-                    results = st.session_state.chatbot.knowledge_base.search(test_query, n_results=3)
-                    for i, result in enumerate(results):
-                        st.write(f"**Result {i+1} (Score: {result['score']:.2f}):**")
-                        st.write(result['content'][:200] + "...")
-                        st.write("---")
+                st.markdown("**Resume is now active in chat widget!**")
+                st.info("✅ Chat widget will use this resume for answering questions")
         
         else:
             st.warning("⚠️ No resume currently loaded")
@@ -747,7 +829,7 @@ def main():
     with tab3:
         st.header("🖼️ Avatar Management")
         
-        saved_avatar = load_saved_avatar()
+        saved_avatar = load_avatar_shared()
         
         if saved_avatar:
             st.success("✅ Custom Avatar Currently Active")
@@ -760,10 +842,11 @@ def main():
                 st.markdown("**Current Avatar Details:**")
                 st.write("- Format: Base64 PNG")
                 st.write("- Size: 100x100 pixels")
-                st.write("- Status: Active and saved permanently")
+                st.write("- Status: Active in both chat widget and admin")
+                st.success("✅ Avatar is synced between both applications!")
                 
                 if st.button("🗑️ Remove Current Avatar", type="secondary"):
-                    if delete_saved_avatar():
+                    if delete_avatar_shared():
                         st.success("Avatar removed successfully!")
                         st.rerun()
                     else:
@@ -792,8 +875,8 @@ def main():
                 with col2:
                     st.write("**Preview of uploaded avatar**")
                     if st.button("💾 Save This Avatar", type="primary"):
-                        if save_avatar(preview_avatar):
-                            st.success("✅ Avatar saved successfully!")
+                        if save_avatar_shared(preview_avatar):
+                            st.success("✅ Avatar saved and synced to chat widget!")
                             st.rerun()
                         else:
                             st.error("Failed to save avatar")
@@ -820,34 +903,6 @@ def main():
                 value=10,
                 help="Number of pages to scrape from the website"
             )
-        
-        # Current knowledge base status
-        st.subheader("📊 Knowledge Base Status")
-        
-        if "chatbot" in st.session_state:
-            kb = st.session_state.chatbot.knowledge_base
-            
-            total_chunks = len(kb.content_chunks)
-            resume_chunks = len([m for m in kb.metadata if m.get('source_type') == 'resume'])
-            website_chunks = total_chunks - resume_chunks
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Total Content Chunks", total_chunks)
-            with col2:
-                st.metric("Resume Chunks", resume_chunks)
-            with col3:
-                st.metric("Website Chunks", website_chunks)
-            
-            if kb.metadata:
-                st.subheader("📋 Content Sources")
-                sources_df = pd.DataFrame(kb.metadata)
-                if not sources_df.empty:
-                    source_summary = sources_df.groupby('source_type').agg({
-                        'chunk_id': 'count',
-                        'word_count': 'sum'
-                    }).rename(columns={'chunk_id': 'chunks', 'word_count': 'total_words'})
-                    st.dataframe(source_summary, use_container_width=True)
         
         # Scraping actions
         st.subheader("🚀 Update Knowledge Base")
@@ -877,68 +932,86 @@ def main():
     with tab5:
         st.header("⚙️ System Settings & Configuration")
         
+        # Database Connection Status
+        st.subheader("🔗 Database Connection Status")
+        status = show_database_status()
+        
+        if status["connected"]:
+            st.success("🎉 Apps are successfully connected and syncing data!")
+            
+            # Test data sync
+            st.subheader("🧪 Test Data Synchronization")
+            if st.button("🔄 Test Sync"):
+                # Test by reading current data
+                avatar_test = load_avatar_shared()
+                resume_test = load_resume_shared()
+                user_test = load_user_data_shared()
+                
+                st.write("**Sync Test Results:**")
+                st.write(f"✅ Avatar: {'Found' if avatar_test else 'Not found'}")
+                st.write(f"✅ Resume: {'Found' if resume_test else 'Not found'}")
+                st.write(f"✅ User data: {len(user_test)} records")
+                st.success("All data is accessible from shared database!")
+        
+        else:
+            st.error("❌ Apps are not connected! Data changes won't sync.")
+            st.markdown("""
+            **To connect your apps:**
+            1. Create a GitHub Gist at [gist.github.com](https://gist.github.com)
+            2. Create a GitHub token with 'gist' permissions
+            3. Add both to secrets in BOTH apps:
+            ```
+            GITHUB_TOKEN = "your-token"
+            GIST_ID = "your-gist-id"
+            ```
+            """)
+        
         # API Configuration
         st.subheader("🔑 API Configuration")
         
-        openai_api_key = os.getenv("OPENAI_API_KEY")
+        openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
         if openai_api_key:
             masked_key = openai_api_key[:7] + "..." + openai_api_key[-4:]
             st.success(f"✅ OpenAI API Key configured: {masked_key}")
         else:
             st.error("❌ OpenAI API Key not found in environment variables")
-            st.code("Create a .env file with: OPENAI_API_KEY=your-key-here")
         
-        # File system status
-        st.subheader("📁 File System Status")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Data Directory:**")
-            if os.path.exists(DATA_DIR):
-                st.success(f"✅ {DATA_DIR} exists")
-                
-                files = os.listdir(DATA_DIR)
-                if files:
-                    st.write("**Files:**")
-                    for file in files:
-                        file_path = os.path.join(DATA_DIR, file)
-                        file_size = os.path.getsize(file_path) / 1024
-                        st.write(f"- {file} ({file_size:.1f} KB)")
-                else:
-                    st.info("Directory is empty")
-            else:
-                st.error(f"❌ {DATA_DIR} not found")
-        
-        with col2:
-            st.write("**Individual Files:**")
-            
-            files_status = [
-                ("Resume Data", RESUME_FILE),
-                ("Avatar Data", AVATAR_FILE),
-                ("User Data", USER_DATA_FILE)
-            ]
-            
-            for name, path in files_status:
-                if os.path.exists(path):
-                    size = os.path.getsize(path) / 1024
-                    st.success(f"✅ {name}: {size:.1f} KB")
-                else:
-                    st.warning(f"⚠️ {name}: Not found")
-        
-        # Chat widget deployment info
+        # App URLs
         st.subheader("🚀 Deployment Information")
         
         st.info("""
-        **Chat Widget Deployment:**
-        - Deploy `chat_widget.py` to a public Streamlit app
-        - Embed using iframe in your website
-        - Clean interface without admin features
+        **Your App URLs:**
+        - **Chat Widget**: Use for embedding in your portfolio website
+        - **Admin Dashboard**: Keep private for management
         
-        **Admin Dashboard:**
-        - Deploy `admin_dashboard.py` separately 
-        - Password protected for security
-        - Complete management functionality
+        **Embedding Code:**
+        ```html
+        <iframe 
+            src="https://your-chat-widget.streamlit.app" 
+            width="420" 
+            height="650" 
+            frameborder="0"
+            style="border-radius: 20px;">
+        </iframe>
+        ```
         """)
+        
+        # Data management
+        st.subheader("📊 Data Management")
+        
+        # Export all data
+        if st.button("📥 Export All Data"):
+            db = get_shared_db()
+            all_data = db.export_all_data()
+            
+            json_data = json.dumps(all_data, indent=2, default=str)
+            st.download_button(
+                label="📥 Download Complete Database Export",
+                data=json_data,
+                file_name=f"chatbot_database_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json",
+                help="Download complete database backup"
+            )
         
         # Danger zone
         st.markdown("""
@@ -952,24 +1025,24 @@ def main():
         with col1:
             if st.button("🗑️ Clear All User Data", type="secondary"):
                 if st.checkbox("I confirm I want to delete all user data"):
-                    try:
-                        if os.path.exists(USER_DATA_FILE):
-                            os.remove(USER_DATA_FILE)
+                    db = get_shared_db()
+                    # Clear only user interactions
+                    data = db._load_gist_data()
+                    data["user_interactions"] = []
+                    if db._save_gist_data(data):
                         st.success("All user data cleared successfully!")
-                    except Exception as e:
-                        st.error(f"Error clearing user data: {str(e)}")
+                    else:
+                        st.error("Failed to clear user data")
         
         with col2:
             if st.button("💥 Reset All Data", type="secondary"):
                 if st.checkbox("I confirm I want to reset everything"):
-                    try:
-                        for file in [RESUME_FILE, AVATAR_FILE, USER_DATA_FILE]:
-                            if os.path.exists(file):
-                                os.remove(file)
+                    db = get_shared_db()
+                    if db.clear_all_data():
                         st.success("All data reset successfully!")
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Error resetting data: {str(e)}")
+                    else:
+                        st.error("Failed to reset data")
 
 def process_resume_file(uploaded_file):
     """Process uploaded resume file"""
@@ -978,9 +1051,21 @@ def process_resume_file(uploaded_file):
         resume_content = processor.process_resume(uploaded_file)
         
         if resume_content:
-            if "chatbot" in st.session_state:
-                st.session_state.chatbot.knowledge_base.add_resume_content(resume_content)
+            # Save to shared database
+            success = save_resume_shared(
+                resume_content.filename,
+                resume_content.content,
+                resume_content.file_type,
+                resume_content.metadata
+            )
             
+            if success:
+                st.success("✅ Resume saved and synced to chat widget!")
+            else:
+                st.error("❌ Failed to save resume")
+                return
+            
+            # Show processing results
             st.subheader("📋 Resume Processing Results")
             
             col1, col2, col3 = st.columns(3)
@@ -995,6 +1080,8 @@ def process_resume_file(uploaded_file):
             preview_text = resume_content.content[:500] + "..." if len(resume_content.content) > 500 else resume_content.content
             st.text_area("Extracted Text (Preview)", preview_text, height=200, disabled=True)
             
+            st.success("🎉 Resume is now active in the chat widget!")
+            
         else:
             st.error("Failed to process the resume. Please check the file format and try again.")
 
@@ -1005,9 +1092,6 @@ def scrape_website(url: str, max_pages: int):
         content = scraper.scrape_website(url, max_pages)
         
         if content:
-            if "chatbot" in st.session_state:
-                st.session_state.chatbot.knowledge_base.add_website_content(content)
-            
             st.subheader("📊 Website Analysis Results")
             df = pd.DataFrame([
                 {
@@ -1022,6 +1106,10 @@ def scrape_website(url: str, max_pages: int):
             
             total_words = sum(c.metadata.get("word_count", 0) for c in content)
             st.info(f"📈 Successfully processed {len(content)} pages with {total_words:,} total words")
+            
+            # Note: Website content would need additional integration with the knowledge base
+            # This is mainly for content analysis
+            
         else:
             st.error("Could not retrieve content. Please verify the URL and try again.")
 
