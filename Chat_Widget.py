@@ -866,10 +866,7 @@ def main():
         suggestions = [
             "Why should I hire Aniket?",
             "What are his technical skills?", 
-            "Tell me about his projects",
-            "What's his educational background?",
-            "What are his career goals?",
-            "How can we contact him?"
+            "Tell me about his projects"
         ]
         
         # Create responsive grid of suggestion buttons
