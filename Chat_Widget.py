@@ -461,50 +461,23 @@ class SmartHybridChatbot:
         return response, intent
     
     def get_greeting_response(self, is_casual: bool = False) -> str:
-        if is_casual:
-            return """Hey there! 👋 Great to meet you!
+        return """Hello! I'm Aniket's AI assistant, here to help you learn about his professional background and qualifications.
 
-I'm Aniket's AI assistant, and I'm here to chat about his professional background and what makes him such a great candidate.
+Aniket is currently pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant.
 
-He's currently crushing it in his Master's program at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant. Pretty impressive, right?
-
-What would you like to know about him? His technical skills? Cool projects he's worked on? Or maybe why he'd be an awesome addition to your team?"""
-        else:
-            return """Hello! It's wonderful to meet you! 👋 
-
-I'm Aniket's AI assistant, and I'm here to help you learn about his professional background and qualifications. 
-
-Aniket is currently pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant. His combination of academic excellence and practical experience makes him quite remarkable.
-
-What would you like to know about him? I can share details about his skills, experience, projects, or why he'd be an excellent addition to your team!"""
+What would you like to know about him? I can share details about his skills, experience, projects, or why he'd be an excellent addition to your team."""
     
     def get_thanks_response(self, is_casual: bool = False) -> str:
-        if is_casual:
-            return """You're totally welcome! 😊 Happy to help!
+        return """You're welcome! I'm glad I could help you learn more about Aniket.
 
-I love talking about Aniket - he's got such an impressive background. Got any other questions about his experience or what he's been working on? I'm here for it!"""
-        else:
-            return """You're very welcome! 😊
-
-I'm delighted I could help you learn more about Aniket. His background really speaks for itself - the combination of academic excellence and real-world impact is quite remarkable.
-
-Please feel free to ask about anything else you'd like to know - his technical expertise, project details, or career aspirations. I'm here to help!"""
+If you have any other questions about his background, skills, projects, or qualifications, please feel free to ask. Is there anything specific about his experience or technical expertise you'd like to explore further?"""
     
     def get_goodbye_response(self, is_casual: bool = False) -> str:
-        if is_casual:
-            return """Thanks for checking out Aniket! 👋
+        return """Thank you for your interest in Aniket Shirsat.
 
-Hope I gave you a good sense of what an awesome candidate he is. If you want to connect with him about opportunities, definitely reach out - he's actively looking and would love to chat!
+I hope the information has been helpful in understanding his qualifications and potential value to your organization. If you'd like to connect with Aniket directly, please reach out through his professional channels. He's actively pursuing new opportunities and would be pleased to discuss how his skills and experience align with your needs.
 
-Catch you later! 🚀"""
-        else:
-            return """Thank you so much for your interest in Aniket Shirsat! 👋
-
-I sincerely hope our conversation has given you valuable insights into his qualifications and the exceptional value he could bring to your organization. 
-
-If you'd like to connect with Aniket directly, please don't hesitate to reach out through his professional channels. He's actively pursuing new opportunities and would be thrilled to discuss how his skills and experience align with your needs.
-
-Wishing you a wonderful day ahead!"""
+Have a great day!"""
     
     def get_hiring_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         base_response = f"""🎯 **Why Aniket Shirsat is an Exceptional Hire**
