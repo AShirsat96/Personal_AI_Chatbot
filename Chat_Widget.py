@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 import json
 import re
+import requests
 
 # Environment setup
 from dotenv import load_dotenv
@@ -19,6 +20,181 @@ def is_valid_email(email):
         return False
     local, domain = parts
     return len(local) >= 1 and len(domain) >= 3 and '.' in domain
+
+# 🔗 SHARED DATABASE CLASS (copied from dashboard)
+class GitHubGistDatabase:
+    """Free shared database using GitHub Gist - SAME as dashboard"""
+    
+    def __init__(self):
+        # Get credentials from Streamlit secrets
+        self.github_token = st.secrets.get("GITHUB_TOKEN", "")
+        self.gist_id = st.secrets.get("GIST_ID", "")
+        
+        if not self.github_token or not self.gist_id:
+            self.use_gist = False
+        else:
+            self.use_gist = True
+            
+        self.headers = {
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+    
+    def _load_gist_data(self) -> Dict:
+        """Load current data from GitHub Gist"""
+        if not self.use_gist:
+            return self._get_local_data()
+            
+        try:
+            response = requests.get(
+                f"https://api.github.com/gists/{self.gist_id}",
+                headers=self.headers
+            )
+            
+            if response.status_code == 200:
+                gist_data = response.json()
+                content = gist_data["files"]["chatbot_data.json"]["content"]
+                return json.loads(content)
+            else:
+                return self._get_default_data()
+                
+        except Exception as e:
+            st.warning(f"Error loading gist data: {str(e)}")
+            return self._get_local_data()
+    
+    def _save_gist_data(self, data: Dict) -> bool:
+        """Save data to GitHub Gist"""
+        if not self.use_gist:
+            return self._save_local_data(data)
+            
+        try:
+            payload = {
+                "files": {
+                    "chatbot_data.json": {
+                        "content": json.dumps(data, indent=2, default=str)
+                    }
+                }
+            }
+            
+            response = requests.patch(
+                f"https://api.github.com/gists/{self.gist_id}",
+                headers=self.headers,
+                json=payload
+            )
+            
+            return response.status_code == 200
+            
+        except Exception as e:
+            st.error(f"Error saving to gist: {str(e)}")
+            return self._save_local_data(data)
+    
+    def _get_default_data(self) -> Dict:
+        """Get default data structure"""
+        return {
+            "user_interactions": [],
+            "conversations": [],  # 📊 NEW: Store full conversations
+            "resume_content": None,
+            "avatar_data": None,
+            "app_settings": {},
+            "last_updated": datetime.now().isoformat()
+        }
+    
+    def _get_local_data(self) -> Dict:
+        """Fallback to session state storage"""
+        if "gist_data" not in st.session_state:
+            st.session_state.gist_data = self._get_default_data()
+        return st.session_state.gist_data
+    
+    def _save_local_data(self, data: Dict) -> bool:
+        """Save to session state as fallback"""
+        st.session_state.gist_data = data
+        return True
+    
+    def save_user_interaction(self, name: str, email: str, session_id: str) -> bool:
+        """Save user interaction"""
+        try:
+            data = self._load_gist_data()
+            
+            user_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "name": name,
+                "email": email,
+                "session_id": session_id
+            }
+            
+            data["user_interactions"].append(user_entry)
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            st.error(f"Error saving user interaction: {str(e)}")
+            return False
+    
+    # 📊 NEW: Conversation logging for dashboard analytics
+    def log_conversation(self, session_id: str, user_message: str, bot_response: str, intent: str, user_name: str = "", user_email: str = "") -> bool:
+        """Log conversation for analytics"""
+        try:
+            data = self._load_gist_data()
+            
+            conversation_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "session_id": session_id,
+                "user_name": user_name,
+                "user_email": user_email,
+                "user_message": user_message,
+                "bot_response": bot_response,
+                "detected_intent": intent,
+                "response_length": len(bot_response),
+                "message_length": len(user_message)
+            }
+            
+            if "conversations" not in data:
+                data["conversations"] = []
+            
+            data["conversations"].append(conversation_entry)
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            # Don't show error to user for conversation logging
+            return False
+    
+    def get_avatar(self) -> Optional[str]:
+        """Get current avatar from shared database"""
+        try:
+            data = self._load_gist_data()
+            avatar_data = data.get("avatar_data")
+            
+            if avatar_data:
+                return avatar_data.get("avatar_base64")
+            return None
+            
+        except Exception as e:
+            return None
+
+# Initialize shared database
+@st.cache_resource
+def get_shared_db():
+    """Get shared database instance"""
+    return GitHubGistDatabase()
+
+# 🔄 UPDATED: Use shared database instead of session state
+def save_user_info(name: str, email: str, session_id: str) -> bool:
+    """Save user info to SHARED database (connects to dashboard!)"""
+    db = get_shared_db()
+    return db.save_user_interaction(name, email, session_id)
+
+def log_conversation_to_dashboard(session_id: str, user_message: str, bot_response: str, intent: str, user_name: str = "", user_email: str = "") -> bool:
+    """Log conversation to dashboard for live analytics"""
+    db = get_shared_db()
+    return db.log_conversation(session_id, user_message, bot_response, intent, user_name, user_email)
+
+def get_shared_avatar() -> Optional[str]:
+    """Get avatar from shared database (synced with dashboard)"""
+    db = get_shared_db()
+    return db.get_avatar()
 
 class SmartHybridChatbot:
     """Intelligent hybrid chatbot that works without any APIs"""
@@ -142,44 +318,46 @@ class SmartHybridChatbot:
             "wants_examples": any(word in input_lower for word in ["example", "instance", "case", "sample"])
         }
     
-    def generate_response(self, user_input: str) -> str:
-        """Generate intelligent response based on intent analysis"""
+    def generate_response(self, user_input: str) -> tuple[str, str]:
+        """Generate intelligent response based on intent analysis - Returns (response, intent)"""
         intent = self.analyze_intent(user_input)
         context = self.extract_context(user_input)
         
         # Generate base response
         if intent == "greeting":
-            return self.get_greeting_response()
+            response = self.get_greeting_response()
         elif intent == "thanks":
-            return self.get_thanks_response()
+            response = self.get_thanks_response()
         elif intent == "goodbye":
-            return self.get_goodbye_response()
+            response = self.get_goodbye_response()
         elif intent == "hiring":
-            return self.get_hiring_response(context)
+            response = self.get_hiring_response(context)
         elif intent == "skills":
-            return self.get_skills_response(context)
+            response = self.get_skills_response(context)
         elif intent == "education":
-            return self.get_education_response(context)
+            response = self.get_education_response(context)
         elif intent == "experience":
-            return self.get_experience_response(context)
+            response = self.get_experience_response(context)
         elif intent == "projects":
-            return self.get_projects_response(context)
+            response = self.get_projects_response(context)
         elif intent == "personal":
-            return self.get_personal_response(context)
+            response = self.get_personal_response(context)
         elif intent == "contact":
-            return self.get_contact_response(context)
+            response = self.get_contact_response(context)
         elif intent == "availability":
-            return self.get_availability_response(context)
+            response = self.get_availability_response(context)
         elif intent == "salary":
-            return self.get_salary_response(context)
+            response = self.get_salary_response(context)
         elif intent == "location":
-            return self.get_location_response(context)
+            response = self.get_location_response(context)
         elif intent == "company_culture":
-            return self.get_culture_response(context)
+            response = self.get_culture_response(context)
         elif intent == "future":
-            return self.get_future_response(context)
+            response = self.get_future_response(context)
         else:
-            return self.get_general_response()
+            response = self.get_general_response()
+            
+        return response, intent
     
     def get_greeting_response(self) -> str:
         return """Hello! Great to meet you! 👋 
@@ -545,24 +723,6 @@ Programming: {', '.join(self.aniket_data['technical_skills']['programming'])} | 
 • What's his educational background?
 • How can we get in touch?"""
 
-# Simple storage functions
-def save_user_info(name: str, email: str, session_id: str) -> bool:
-    """Save user info to session state"""
-    try:
-        if "user_data" not in st.session_state:
-            st.session_state.user_data = []
-        
-        user_entry = {
-            'timestamp': datetime.now().isoformat(),
-            'name': name,
-            'email': email,
-            'session_id': session_id
-        }
-        st.session_state.user_data.append(user_entry)
-        return True
-    except:
-        return False
-
 def main():
     """Hybrid Chatbot - Clean interface for embedding"""
     st.set_page_config(
@@ -739,15 +899,20 @@ def main():
     # Main chat container
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    # Chat header
-    avatar_src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTIgMTJDMTQuNzYxNCAxMiAxNyA5Ljc2MTQyIDE3IDdDMTcgNC4yMzg1OCAxNC43NjE0IDIgMTIgMkM5LjIzODU4IDIgNyA0LjIzODU4IDcgN0M3IDkuNzYxNDIgOS4yMzg1OCAxMiAxMiAxMlpNMTIgMTRDOC42ODYyOSAxNCA2IDE2LjIzODYgNiAxOUg2QzYgMjEuNzYxNCA4LjIzODU4IDI0IDExIDI0SDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
+    # Chat header with dynamic avatar
+    shared_avatar = get_shared_avatar()
+    if shared_avatar:
+        avatar_src = shared_avatar
+    else:
+        # Default avatar
+        avatar_src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTIgMTJDMTQuNzYxNCAxMiAxNyA5Ljc2MTQyIDE3IDdDMTcgNC4yMzg1OCAxNC43NjE0IDIgMTIgMkM5LjIzODU4IDIgNyA0LjIzODU4IDcgN0M3IDkuNzYxNDIgOS4yMzg1OCAxMiAxMiAxMlpNMTIgMTRDOC42ODYyOSAxNCA2IDE2LjIzODYgNiAxOUg2QzYgMjEuNzYxNCA4LjIzODU4IDI0IDExIDI0SDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
     
     st.markdown(f"""
     <div class="chat-header">
         <img src="{avatar_src}" class="chat-avatar" alt="Aniket's Avatar">
         <div class="chat-title">
             <h3>Aniket's AI Assistant</h3>
-            <p class="chat-subtitle">Intelligent responses powered by hybrid AI</p>
+            <p class="chat-subtitle">🔗 Connected to Dashboard</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -814,8 +979,19 @@ def main():
                            use_container_width=True):
                     # Add suggestion as user message and generate response
                     st.session_state.messages.append({"role": "user", "content": suggestion})
-                    response = st.session_state.chatbot.generate_response(suggestion)
+                    response, intent = st.session_state.chatbot.generate_response(suggestion)
                     st.session_state.messages.append({"role": "assistant", "content": response})
+                    
+                    # 📊 LOG CONVERSATION TO DASHBOARD
+                    log_conversation_to_dashboard(
+                        st.session_state.session_id,
+                        suggestion,
+                        response,
+                        intent,
+                        st.session_state.user_name,
+                        st.session_state.user_email
+                    )
+                    
                     st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
@@ -851,7 +1027,7 @@ def main():
                 st.session_state.asking_for_email = False
                 st.session_state.user_info_collected = True
                 
-                # Save user info
+                # 🔗 SAVE USER INFO TO SHARED DATABASE
                 save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
                 
                 response = f"""Perfect! Thank you, {st.session_state.user_name}. I'm ready to answer questions about Aniket's professional background.
@@ -870,16 +1046,29 @@ What would you like to know?"""
         else:
             # Normal chat using hybrid AI
             with st.spinner("🤖 Analyzing your question..."):
-                response = st.session_state.chatbot.generate_response(prompt)
+                response, intent = st.session_state.chatbot.generate_response(prompt)
             
             st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            # 📊 LOG CONVERSATION TO DASHBOARD
+            log_conversation_to_dashboard(
+                st.session_state.session_id,
+                prompt,
+                response,
+                intent,
+                st.session_state.user_name,
+                st.session_state.user_email
+            )
         
         st.rerun()
     
-    # Footer with hybrid AI branding
-    st.markdown("""
+    # Footer with connection status
+    db = get_shared_db()
+    connection_status = "🟢 Connected" if db.use_gist else "🟡 Local Mode"
+    
+    st.markdown(f"""
     <div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 20px; padding: 10px;">
-        🤖 Powered by Hybrid AI • Aniket Shirsat Portfolio Assistant
+        🤖 Powered by Hybrid AI • {connection_status} • Aniket Shirsat Portfolio Assistant
     </div>
     """, unsafe_allow_html=True)
 
