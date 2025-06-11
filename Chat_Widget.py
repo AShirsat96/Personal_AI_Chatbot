@@ -443,343 +443,165 @@ I hope the information has been helpful in understanding his qualifications and 
 Have a great day!"""
     
     def get_hiring_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        base_response = f"""🎯 **Why Aniket Shirsat is an Exceptional Hire**
+        base_response = f"""You should definitely consider Aniket! He's got this rare combination that's hard to find - top academic performance with real business results.
 
-**🎓 Academic Excellence**
-• Perfect {self.aniket_data['education']['current']['gpa']} GPA in {self.aniket_data['education']['current']['degree']}
-• {self.aniket_data['personal_info']['current_role']} while maintaining academic excellence
-• Previous {self.aniket_data['education']['previous']['degree']} provides business acumen
+He's maintaining a perfect {self.aniket_data['education']['current']['gpa']} GPA in his {self.aniket_data['education']['current']['degree']} while working as a {self.aniket_data['personal_info']['current_role']}. That alone shows he can handle multiple demanding responsibilities.
 
-**💼 Proven Business Impact**
-• {self.aniket_data['experience']['key_projects'][1]['result']}
-• {self.aniket_data['experience']['key_projects'][1]['impact']}
-• {self.aniket_data['experience']['key_projects'][0]['result']}
+But what really sets him apart is the business impact. His vessel fuel optimization project saved {self.aniket_data['experience']['key_projects'][1]['result']} with a {self.aniket_data['experience']['key_projects'][1]['impact']}. And his cultural ambiguity detection work achieved {self.aniket_data['experience']['key_projects'][0]['result']}.
 
-**🛠️ Technical Expertise**
-• Programming: {', '.join(self.aniket_data['technical_skills']['programming'])}
-• Cloud Platforms: {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}
-• AI/ML: {', '.join(self.aniket_data['technical_skills']['ai_ml'])}
+He's technically solid too - knows {', '.join(self.aniket_data['technical_skills']['programming'])}, works with {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, and has hands-on experience with {', '.join(self.aniket_data['technical_skills']['ai_ml'])}.
 
-**🏆 Leadership & Character**
-• {self.aniket_data['leadership'][0]}
-• {self.aniket_data['leadership'][1]}
-
-**🎯 The Bottom Line**
-{self.aniket_data['unique_value']} - a rare combination that makes him invaluable for data science teams looking for both technical depth and business impact."""
+Plus he's got leadership experience as {self.aniket_data['leadership'][0]} and stays active with {self.aniket_data['leadership'][1]}. So you're getting someone who can deliver results, lead teams, and bring that academic rigor to real-world problems."""
 
         if context["wants_details"]:
-            base_response += f"""
-
-**📊 Detailed Impact Metrics:**
-• Cultural Ambiguity Detection: Achieved {self.aniket_data['experience']['key_projects'][0]['result']}
-• Vessel Optimization: Delivered {self.aniket_data['experience']['key_projects'][1]['impact']} saving {self.aniket_data['experience']['key_projects'][1]['result']}
-• Academic Performance: Maintained perfect GPA while conducting active research"""
+            base_response += f"""\n\nIf you want specifics - the cultural ambiguity detection models he built are performing at {self.aniket_data['experience']['key_projects'][0]['result']}, which is pretty impressive for this type of work. The vessel optimization system is running across 50+ vessels and consistently delivering those fuel savings."""
 
         return base_response
     
     def get_skills_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         skills = self.aniket_data['technical_skills']
         
-        response = f"""💻 **Aniket's Technical Skill Portfolio**
+        response = f"""Aniket's got a really solid technical foundation. He's proficient in {', '.join(skills['programming'])} for programming, which covers most of what you'd need for data science work.
 
-**🔧 Programming Languages**
-{', '.join(skills['programming'])} - Production-level proficiency
+On the cloud side, he's worked with {', '.join(skills['cloud_platforms'])}, so he can deploy and scale solutions properly. His AI and ML experience includes {', '.join(skills['ai_ml'])}, and he's actually applied these in real projects, not just academic exercises.
 
-**☁️ Cloud & Infrastructure** 
-{', '.join(skills['cloud_platforms'])} - Full-stack cloud development
-
-**🤖 AI/ML Expertise**
-{', '.join(skills['ai_ml'])} - Advanced implementation experience
-
-**🎯 Specialized Capabilities**
-{', '.join(skills['specializations'])}
-
-**💡 What Sets Him Apart**
-• Combines technical depth with business understanding
-• Proven ability to deliver quantifiable results ({self.aniket_data['experience']['key_projects'][1]['result']})
-• Academic rigor meets practical application
-• Cross-functional collaboration through leadership roles"""
+What makes him different is that he's not just technically competent - he understands how to translate technical work into business value. His vessel optimization project saved over a million dollars annually, and his cultural ambiguity detection models are achieving 90% accuracy in production."""
 
         if context["wants_examples"]:
-            response += f"""
-
-**🔍 Skill Application Examples:**
-• **Python/ML**: Built cultural ambiguity detection models achieving 90% accuracy
-• **Optimization Algorithms**: Developed vessel fuel systems saving $1M+ annually  
-• **Cloud Platforms**: Deployed scalable ML solutions for 50+ vessel fleet
-• **Research**: Published-quality work while maintaining 4.0 GPA"""
+            response += f"""\n\nFor example, he built those cultural ambiguity detection models using advanced NLP techniques and achieved 90% accuracy. The vessel fuel optimization system he developed uses predictive modeling and is currently running across 50+ vessels. He's also done the full pipeline work - data processing, model development, deployment, and monitoring."""
 
         return response
     
     def get_education_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         edu = self.aniket_data['education']
         
-        response = f"""🎓 **Educational Excellence**
+        response = f"""Aniket's educational background is pretty impressive. He's currently working on his {edu['current']['degree']} at {edu['current']['university']} and maintaining a perfect {edu['current']['gpa']} GPA while also working as a {self.aniket_data['personal_info']['current_role']}.
 
-**Current Program**
-• {edu['current']['degree']} at {edu['current']['university']}
-• GPA: Perfect {edu['current']['gpa']} 
-• Role: {self.aniket_data['personal_info']['current_role']}
+What I think is interesting is that he also has a {edu['previous']['degree']} from {edu['previous']['university']}. That business background really shows in how he approaches technical problems - he's not just building models for the sake of it, he's thinking about real business impact.
 
-**Previous Education**
-• {edu['previous']['degree']} from {edu['previous']['university']}
-• International experience providing global perspective
-
-**🏆 Academic Achievements**
-• {self.aniket_data['achievements'][0]}
-• Active research producing measurable results
-• Balancing coursework with practical application
-
-**💼 The Advantage**
-This combination of business education + technical depth creates a unique profile - someone who can build sophisticated ML models AND understand their business impact."""
+The fact that he's keeping up perfect grades while doing actual research work tells you a lot about his ability to manage priorities and deliver quality work under pressure."""
 
         if context["wants_details"]:
-            response += f"""
-
-**📚 Academic Focus Areas:**
-• Advanced Machine Learning & AI
-• Computer Vision & NLP
-• Statistical Analysis & Data Science
-• Business Strategy & Management
-• Research Methodologies"""
+            response += f"""\n\nHis current program focuses on advanced machine learning, computer vision, NLP, and statistical analysis. The management background gives him that business strategy perspective you don't usually see in technical candidates. It's a combination that's pretty rare."""
 
         return response
     
     def get_experience_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        response = f"""💼 **Professional Experience Highlights**
+        response = f"""Aniket's been working as a {self.aniket_data['experience']['current_role']} while completing his Master's, which is no small feat. But what's really impressive is the kind of work he's been doing.
 
-**Current Role**
-{self.aniket_data['experience']['current_role']}
+He built this cultural ambiguity detection system that analyzes advertisements for cultural sensitivity. The models he developed are hitting {self.aniket_data['experience']['key_projects'][0]['result']}, which is really solid performance for this type of NLP work.
 
-**🚀 Key Projects & Results**
+Then there's his vessel fuel optimization project - this one's got real business impact. He created predictive algorithms that are saving {self.aniket_data['experience']['key_projects'][1]['result']} through a {self.aniket_data['experience']['key_projects'][1]['impact']} across 50+ vessels. That's the kind of work where you can directly see the value.
 
-**Cultural Ambiguity Detection System**
-• Developed ML models for advertisement analysis
-• Achieved: {self.aniket_data['experience']['key_projects'][0]['result']}
-• Domain: {self.aniket_data['experience']['key_projects'][0]['domain']}
-
-**Vessel Fuel Optimization Platform** 
-• Built predictive optimization algorithms
-• Impact: {self.aniket_data['experience']['key_projects'][1]['impact']}
-• Business Value: {self.aniket_data['experience']['key_projects'][1]['result']}
-
-**🎯 Leadership Experience**
-• {self.aniket_data['leadership'][0]}
-• {self.aniket_data['leadership'][1]}
-
-**💡 What This Demonstrates**
-Aniket doesn't just build models - he delivers solutions that create measurable business value while maintaining the highest academic standards."""
+Outside of his research, he's also leading as {self.aniket_data['leadership'][0]} and stays involved with {self.aniket_data['leadership'][1]}. So he's got that balance of technical depth, leadership experience, and staying active."""
 
         return response
     
     def get_projects_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         projects = self.aniket_data['experience']['key_projects']
         
-        response = f"""🔬 **Research & Project Portfolio**
+        response = f"""Aniket's been working on some really interesting projects that show both technical skill and business thinking.
 
-**Project 1: Cultural Ambiguity Detection**
-• **Goal**: Analyze cultural ambiguity in advertisements
-• **Approach**: Advanced NLP and ML techniques
-• **Result**: {projects[0]['result']}
-• **Impact**: Improved ad targeting and cultural sensitivity
+His cultural ambiguity detection project is fascinating - he's analyzing advertisements to identify potential cultural sensitivities. The approach uses advanced NLP and machine learning techniques, and he's achieved {projects[0]['result']}. This kind of work is becoming really important for companies going global.
 
-**Project 2: Vessel Fuel Optimization**
-• **Goal**: Optimize fuel consumption for maritime fleet
-• **Approach**: Predictive modeling and optimization algorithms  
-• **Result**: {projects[1]['result']}
-• **Impact**: {projects[1]['impact']} across 50+ vessels
+The vessel fuel optimization project is where you can see the business impact clearly. He built predictive modeling algorithms that help optimize fuel consumption for maritime fleets. The system is currently running across 50+ vessels and delivering {projects[1]['impact']}, which translates to {projects[1]['result']} in savings annually.
 
-**🎯 Project Characteristics**
-• Real-world business applications
-• Quantifiable, measurable outcomes
-• Cross-disciplinary approach (AI + Business)
-• Scalable solutions"""
+What I like about both projects is that they're not just academic exercises - they're solving real problems with measurable outcomes. That's the kind of thinking you want in a data scientist."""
 
         if context["wants_details"]:
-            response += f"""
-
-**🔧 Technical Implementation**
-• **Data Pipeline**: End-to-end data processing and analysis
-• **Model Development**: Custom ML algorithms for specific use cases  
-• **Deployment**: Production-ready systems with monitoring
-• **Optimization**: Continuous improvement based on performance metrics"""
+            response += f"""\n\nFrom a technical standpoint, he's built complete end-to-end pipelines - data processing, custom ML algorithm development, deployment to production, and ongoing monitoring. The cultural detection work required sophisticated NLP preprocessing and the vessel optimization needed real-time predictive capabilities."""
 
         return response
     
     def get_personal_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""🚣‍♂️ **Beyond the Resume**
+        return f"""Beyond all the technical stuff, Aniket's got a pretty well-rounded personality. He's a member of the {self.aniket_data['leadership'][1]}, which tells you he's disciplined and knows how to work as part of a team. Rowing is one of those sports that really requires coordination and commitment.
 
-**Athletic Commitment**
-{self.aniket_data['leadership'][1]}
-• Demonstrates: Teamwork, discipline, physical fitness
-• Shows: Ability to balance multiple demanding commitments
+He's also {self.aniket_data['leadership'][0]}, so he's actively building the data science community and helping other students. That shows he's not just focused on his own success - he's thinking about lifting others up too.
 
-**Community Leadership**
-{self.aniket_data['leadership'][0]}
-• Develops: Communication and mentoring skills
-• Builds: Data science community and knowledge sharing
+From what I can tell, he's genuinely passionate about learning and tackling complex problems. He stays current with the latest developments in AI and ML, and he seems to really enjoy the challenge of applying academic concepts to real-world business problems.
 
-**Personal Interests**
-• **Continuous Learning**: Stays current with latest AI/ML developments
-• **Research Passion**: Enjoys tackling complex, real-world problems
-• **Collaborative Spirit**: Thrives in team environments
+The combination of athletic commitment, community leadership, and intellectual curiosity usually means you're dealing with someone who can handle pressure, work well with others, and keep growing professionally."""
 
-**🎯 What This Reveals**
-Aniket is a well-rounded individual who excels not just technically, but also in leadership, teamwork, and community building - exactly the type of person who elevates entire teams."""
+        return response
     
     def get_contact_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""📞 **Getting in Touch with Aniket**
+        return f"""Aniket is {self.aniket_data['career_goals'].lower()}, so he's definitely open to conversations about opportunities.
 
-**Current Status**: {self.aniket_data['career_goals']}
+The best way to reach him would be through his professional channels - I'd recommend connecting via LinkedIn or reaching out through his university contacts. He's been pretty responsive to potential employers from what I understand.
 
-**Best Approach**: 
-Please reach out through his professional channels for direct contact information. He's actively engaging with potential employers and responds promptly to opportunities.
+When you do reach out, it would be helpful to mention the specific role or opportunity you're thinking about, and how his background might align with what you're looking for. He's particularly interested in positions where he can apply his ML and optimization skills to real business challenges.
 
-**What to Mention**:
-• Specific role or opportunity details
-• How his background aligns with your needs
-• Timeline and next steps
+He can provide a detailed portfolio of his work, references from his research, and he's usually happy to do a technical demonstration if that would be useful for your evaluation process."""
 
-**📋 What He Can Provide**:
-• Detailed portfolio of projects and results
-• References from academic and professional work
-• Demonstration of technical capabilities
-• Discussion of how he can contribute to your team
-
-Aniket is genuinely excited about opportunities to apply his skills in real-world business contexts and would welcome the chance to discuss how he can contribute to your organization's success."""
+        return response
     
     def get_availability_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""📅 **Availability & Timeline**
+        return f"""Aniket's in an interesting position right now. He's finishing up his {self.aniket_data['personal_info']['current_status'].lower()} while working as a {self.aniket_data['personal_info']['current_role'].lower()}, and he's {self.aniket_data['career_goals'].lower()}.
 
-**Current Status**: 
-• {self.aniket_data['personal_info']['current_status']}
-• {self.aniket_data['experience']['current_role']}
-• {self.aniket_data['career_goals']}
+He's definitely available for interviews and discussions right away. As for start dates, he's pretty flexible and can work around what makes sense for both sides. His research work has given him experience managing multiple commitments, so he's comfortable navigating the transition period.
 
-**Availability**:
-• Open to discussing full-time opportunities
-• Can provide flexible start dates based on mutual agreement
-• Currently balancing academic and research commitments
+The key thing is that he's seriously looking for his next step and isn't just casually browsing opportunities. When he finds the right fit, he's prepared to make it work from a timing perspective.
 
-**Ideal Timeline**:
-• Available for interviews and discussions immediately
-• Can accommodate varying start date requirements
-• Committed to smooth transition planning
+I'd say if you're interested, it's worth having that conversation sooner rather than later since he's actively in the market."""
 
-**🎯 Key Point**:
-Aniket is seriously pursuing his next career step and is prepared to discuss how his academic schedule can align with the right opportunity. His research experience demonstrates his ability to deliver results even with multiple commitments."""
+        return response
     
     def get_salary_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""💼 **Compensation Considerations**
+        return f"""From what I understand, Aniket's approach to compensation is pretty reasonable. He's more focused on finding the right role where he can apply his skills and continue growing than on maximizing the initial salary.
 
-**Approach to Compensation**:
-Aniket is primarily focused on finding the right role where he can apply his skills and grow professionally. He's open to discussing competitive compensation packages appropriate for his experience level and the value he brings.
+That said, he's bringing some serious value to the table. His track record includes {self.aniket_data['experience']['key_projects'][1]['result']} in measurable business impact, plus advanced technical skills in areas that are really in demand right now.
 
-**What He Offers**:
-• Proven ability to deliver measurable business results ({self.aniket_data['experience']['key_projects'][1]['result']})
-• Advanced technical skills in high-demand areas
-• Academic excellence and research experience
-• Leadership and collaborative capabilities
+He's open to discussing competitive packages that are appropriate for data science roles at his experience level. He values opportunities for professional development and is interested in comprehensive packages beyond just base salary.
 
-**Discussion Framework**:
-• Open to market-rate compensation for data science roles
-• Values opportunities for growth and learning
-• Interested in comprehensive packages including development opportunities
-• Flexible on structure based on company practices
+Given what he's already accomplished - perfect academic performance plus real business results - he represents both immediate capability and strong long-term potential. I think most companies would find the investment worthwhile."""
 
-**💡 Value Perspective**:
-Given his track record of delivering $1M+ in business value while maintaining academic excellence, Aniket represents an investment in both immediate capability and long-term potential."""
+        return response
     
     def get_location_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""📍 **Location & Work Preferences**
+        return f"""Aniket's currently based in Indianapolis since he's at Indiana University Indianapolis, but he's pretty flexible about location arrangements.
 
-**Current Location**: 
-Based in Indianapolis, Indiana (Indiana University Indianapolis area)
+He's open to remote work, hybrid setups, or relocating for the right opportunity. His research experience has involved quite a bit of remote collaboration, so he's comfortable with distributed teams.
 
-**Work Flexibility**:
-• Open to remote, hybrid, or on-site arrangements
-• Willing to relocate for the right opportunity
-• Experienced with remote collaboration through research work
+Having that international background from his time at {self.aniket_data['education']['previous']['university']} means he's used to working with diverse teams and adapting to different work environments.
 
-**Geographic Considerations**:
-• U.S.-based with valid work authorization
-• Previous international experience ({self.aniket_data['education']['previous']['university']})
-• Comfortable with diverse, global team environments
+I think his priority is really finding a role where he can make meaningful contributions rather than being tied to a specific location. He's willing to discuss whatever arrangement works best for the company and the role."""
 
-**🎯 Flexibility**:
-Aniket's priority is finding a role where he can make meaningful contributions. He's open to discussing location arrangements that work for both the company and his professional development goals."""
+        return response
     
     def get_culture_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""🤝 **Cultural Fit & Work Style**
+        return f"""Aniket seems like someone who'd fit well in most data-driven organizations. His perfect {self.aniket_data['education']['current']['gpa']} GPA while doing research shows he's got that high-performance mindset, but he's also shown he can work collaboratively through his leadership role as {self.aniket_data['leadership'][0]}.
 
-**Demonstrated Values**:
-• **Excellence**: Perfect {self.aniket_data['education']['current']['gpa']} GPA while conducting research
-• **Impact-Driven**: Focus on measurable business results
-• **Collaborative**: {self.aniket_data['leadership'][0]}
-• **Balanced**: {self.aniket_data['leadership'][1]}
+The fact that he's involved with {self.aniket_data['leadership'][1]} tells you he understands teamwork and discipline. Plus his international background from {self.aniket_data['education']['previous']['university']} means he's comfortable working with diverse teams.
 
-**Work Style Strengths**:
-• **Analytical**: Systematic approach to problem-solving
-• **Results-Oriented**: Track record of delivering quantifiable outcomes
-• **Continuous Learner**: Stays current with industry developments
-• **Team Player**: Experience in leadership and mentoring roles
+What I think would appeal to him is a culture that values both innovation and measurable impact. He's shown he can work independently on complex problems, but he also likes mentoring others and building community. So probably somewhere that encourages collaboration and continuous learning.
 
-**Cultural Adaptability**:
-• International education background
-• Cross-functional project experience
-• Academic and business environment navigation
-• Diverse team collaboration
+Given his track record of delivering real business results while maintaining academic excellence, I think he'd thrive in environments that appreciate both technical depth and practical problem-solving."""
 
-**🎯 Ideal Environment**:
-Thrives in cultures that value innovation, learning, measurable impact, and collaborative problem-solving. His background suggests he'd excel in data-driven organizations that appreciate both technical depth and business understanding."""
+        return response
     
     def get_future_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""🚀 **Career Vision & Future Goals**
+        return f"""Aniket's got a pretty clear vision for where he wants to go. Short-term, he's looking to transition from academic research into industry applications where he can apply his ML and AI skills to solve real business challenges.
 
-**Immediate Goals**:
-• Transition from academic research to industry application
-• Apply ML/AI skills to solve real business challenges
-• Join a team where he can make immediate impact while continuing to grow
+Looking further ahead, he wants to become a technical leader in the data science space. Based on his track record with projects like the vessel optimization that saved {self.aniket_data['experience']['key_projects'][1]['result']}, I think he's got the right mindset - he sees AI and ML as tools for creating tangible business value, not just academic exercises.
 
-**Medium-term Aspirations**:
-• Become a technical leader in data science/ML
-• Build solutions that drive significant business value
-• Mentor others and contribute to team development
+Long-term, he's interested in leading strategic data science initiatives and maybe building expertise in specialized areas like cultural AI or optimization systems. His management background gives him that business perspective that could be really valuable as he moves into leadership roles.
 
-**Long-term Vision**:
-• Establish expertise in specialized areas (Cultural AI, Optimization, etc.)
-• Lead strategic data science initiatives
-• Bridge the gap between technical innovation and business strategy
+What drives him seems to be the opportunity to bridge the gap between cutting-edge technical work and practical business impact. That combination of academic rigor with real-world results suggests he'll keep pushing boundaries while delivering consistent value."""
 
-**🎯 What Drives Him**:
-Based on his track record ({self.aniket_data['experience']['key_projects'][1]['result']}), Aniket is motivated by creating tangible value through advanced analytics. He sees AI/ML as tools for solving meaningful business problems, not just academic exercises.
-
-**💡 Growth Mindset**:
-His combination of perfect academic performance with practical results suggests someone who will continue pushing boundaries while delivering consistent value to any organization."""
+        return response
     
     def get_general_response(self, is_casual: bool = False) -> str:
-        return f"""👋 **About Aniket Shirsat**
+        return f"""Let me tell you about Aniket Shirsat. He's currently working on his {self.aniket_data['personal_info']['current_status'].lower()} with a perfect {self.aniket_data['education']['current']['gpa']} GPA while also working as a {self.aniket_data['personal_info']['current_role'].lower()}.
 
-**🎓 Current Status**
-{self.aniket_data['personal_info']['current_status']} with a perfect {self.aniket_data['education']['current']['gpa']} GPA, working as {self.aniket_data['personal_info']['current_role']}
+What makes him stand out is the real business impact he's already creating. His work includes achieving {self.aniket_data['achievements'][1]}, delivering {self.aniket_data['achievements'][2]}, and maintaining {self.aniket_data['achievements'][4]}.
 
-**🏆 Standout Achievements**
-• {self.aniket_data['achievements'][1]}
-• {self.aniket_data['achievements'][2]}
-• {self.aniket_data['achievements'][3]}
+He's technically solid with {', '.join(self.aniket_data['technical_skills']['programming'])}, {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, and hands-on experience with machine learning, computer vision, and NLP.
 
-**💻 Core Technical Skills**
-Programming: {', '.join(self.aniket_data['technical_skills']['programming'])} | Cloud: {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])} | AI/ML: Machine Learning, Computer Vision, NLP
+Right now he's {self.aniket_data['career_goals'].lower()} where he can apply his combination of technical expertise and business understanding.
 
-**🎯 Currently Seeking**
-{self.aniket_data['career_goals']} where he can apply his unique combination of technical expertise and business impact.
+What would you like to know more about? I can tell you why companies should consider hiring him, dive deeper into his technical skills, talk about his specific projects, or cover his educational background."""
 
-**❓ What would you like to know?**
-• Why should we hire him?
-• What are his technical skills?
-• Tell me about his projects
-• What's his educational background?
-• How can we get in touch?"""
+        return response
 
 def main():
     """Hybrid Chatbot - Clean interface for embedding"""
