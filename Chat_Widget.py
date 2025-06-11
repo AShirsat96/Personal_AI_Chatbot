@@ -329,76 +329,39 @@ class SmartHybridChatbot:
         """Analyze user intent from input with enhanced natural language understanding"""
         input_lower = user_input.lower()
         
-        # Enhanced conversation patterns
-        if any(pattern in input_lower for pattern in ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "what's up", "sup"]):
+        # First check for specific question patterns - be more specific about greetings
+        if any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3 and not any(word in input_lower for word in ["skill", "project", "hire", "experience"]):
             return "greeting"
-        elif any(pattern in input_lower for pattern in ["thank", "thanks", "appreciate", "grateful", "awesome", "cool", "nice", "great job"]):
+        elif any(pattern in input_lower for pattern in ["thank", "thanks", "appreciate", "grateful"]) and not any(word in input_lower for word in ["skill", "project", "hire", "experience"]):
             return "thanks"
-        elif any(pattern in input_lower for pattern in ["bye", "goodbye", "see you", "farewell", "take care", "gotta go", "talk later"]):
+        elif any(pattern in input_lower for pattern in ["bye", "goodbye", "see you", "farewell", "take care"]):
             return "goodbye"
         
-        # Enhanced question patterns with more natural language
-        enhanced_patterns = {
-            "hiring": [
-                "hire", "why", "recommend", "choose", "recruit", "employ", "candidate", "fit", "right person",
-                "should we", "good choice", "worth it", "value", "benefit", "advantage", "perfect for"
-            ],
-            "skills": [
-                "skill", "technical", "programming", "tech", "abilities", "competencies", "expertise", "tools", "technologies",
-                "what can he do", "good at", "proficient", "experienced in", "knows how to"
-            ],
-            "education": [
-                "education", "school", "degree", "gpa", "university", "academic", "study", "learn", "college",
-                "where did he study", "educational background", "qualifications"
-            ],
-            "experience": [
-                "experience", "work", "job", "employment", "career", "professional", "background", "history",
-                "worked at", "previous", "past experience", "work history"
-            ],
-            "projects": [
-                "project", "research", "built", "created", "developed", "worked on", "achievement", "accomplishment",
-                "what has he done", "portfolio", "examples of work", "showcase"
-            ],
-            "personal": [
-                "hobby", "hobbies", "interest", "interests", "personal", "outside work", "free time", "activities",
-                "fun", "personality", "character", "who is he", "about him personally"
-            ],
-            "contact": [
-                "contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "hire him",
-                "how to reach", "connect with", "talk to", "meeting"
-            ],
-            "availability": [
-                "available", "start", "when", "timeline", "notice", "free", "open to",
-                "can he start", "availability", "ready to work"
-            ],
-            "salary": [
-                "salary", "compensation", "pay", "money", "cost", "rate", "price",
-                "how much", "expensive", "budget", "compensation expectations"
-            ],
-            "location": [
-                "location", "where", "based", "remote", "relocate", "move",
-                "lives", "located", "willing to move", "work from"
-            ],
-            "company_culture": [
-                "culture", "team", "environment", "fit", "values", "work style",
-                "team player", "cultural fit", "personality fit", "collaborative"
-            ],
-            "future": [
-                "future", "goals", "plans", "career path", "ambition", "vision",
-                "wants to do", "aspirations", "long term", "growth"
-            ]
-        }
-        
-        # Score intents based on enhanced patterns
-        intent_scores = {}
-        for intent, patterns in enhanced_patterns.items():
-            score = sum(1 for pattern in patterns if pattern in input_lower)
-            if score > 0:
-                intent_scores[intent] = score
-        
-        # Return the intent with highest score, or general if none
-        if intent_scores:
-            return max(intent_scores, key=intent_scores.get)
+        # Enhanced question patterns - check these BEFORE greeting patterns
+        if any(word in input_lower for word in ["hire", "why", "recommend", "choose", "recruit", "employ", "candidate", "should we", "good choice", "worth it", "benefit"]):
+            return "hiring"
+        elif any(word in input_lower for word in ["skill", "technical", "programming", "tech", "abilities", "competencies", "expertise", "tools", "technologies", "what can he do", "good at", "proficient"]):
+            return "skills"
+        elif any(word in input_lower for word in ["education", "school", "degree", "gpa", "university", "academic", "study", "college", "educational background", "qualifications"]):
+            return "education"
+        elif any(word in input_lower for word in ["experience", "work", "job", "employment", "career", "professional", "background", "history", "worked at", "previous"]):
+            return "experience"
+        elif any(word in input_lower for word in ["project", "research", "built", "created", "developed", "worked on", "achievement", "accomplishment", "portfolio", "examples"]):
+            return "projects"
+        elif any(word in input_lower for word in ["hobby", "hobbies", "interest", "interests", "personal", "outside work", "free time", "activities", "personality"]):
+            return "personal"
+        elif any(word in input_lower for word in ["contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "how to reach"]):
+            return "contact"
+        elif any(word in input_lower for word in ["available", "start", "when", "timeline", "notice", "free", "availability", "ready to work"]):
+            return "availability"
+        elif any(word in input_lower for word in ["salary", "compensation", "pay", "money", "cost", "rate", "price", "how much", "budget"]):
+            return "salary"
+        elif any(word in input_lower for word in ["location", "where", "based", "remote", "relocate", "move", "lives", "located"]):
+            return "location"
+        elif any(word in input_lower for word in ["culture", "team", "environment", "fit", "values", "work style", "team player", "collaborative"]):
+            return "company_culture"
+        elif any(word in input_lower for word in ["future", "goals", "plans", "career path", "ambition", "vision", "aspirations", "long term", "growth"]):
+            return "future"
         else:
             return "general"
     
