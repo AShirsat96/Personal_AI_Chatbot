@@ -570,16 +570,14 @@ His interests reflect a genuine passion for learning and addressing complex chal
 The combination of athletic discipline, community leadership, and intellectual curiosity suggests an individual capable of performing under pressure, collaborating effectively, and maintaining continuous professional growth."""
     
     def get_contact_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""Aniket is {self.aniket_data['career_goals'].lower()} and welcomes professional inquiries.
+        return """You can reach Aniket at:
 
-Contact Information:
 Email: ashirsat@iu.edu
 Phone: +1 463 279 6071
 LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
 GitHub: https://github.com/AShirsat96
-Location: Indianapolis, Indiana
 
-For professional opportunities, please reach out via email or LinkedIn. Aniket responds to inquiries within 1-2 business days and is available for interviews, technical discussions, and portfolio reviews."""
+He's actively seeking opportunities and responds to professional inquiries within 1-2 business days."""
     
     def get_availability_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         return f"""Aniket is currently completing his {self.aniket_data['personal_info']['current_status'].lower()} while serving as a {self.aniket_data['personal_info']['current_role'].lower()}, and he is {self.aniket_data['career_goals'].lower()}.
