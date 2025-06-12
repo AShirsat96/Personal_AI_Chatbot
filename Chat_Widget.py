@@ -825,7 +825,7 @@ def main():
     st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
     st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
     
-    # Chat input
+    # Chat input - directly after message container
     if st.session_state.asking_for_name:
         placeholder = "Enter your name..."
     elif st.session_state.asking_for_email:
