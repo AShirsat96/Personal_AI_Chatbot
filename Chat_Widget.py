@@ -320,7 +320,9 @@ class SmartHybridChatbot:
         self.conversation_patterns = {
             "greetings": ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"],
             "thanks": ["thank", "thanks", "appreciate", "grateful"],
-            "goodbye": ["bye", "goodbye", "see you", "farewell", "take care"]
+            "goodbye": ["bye", "goodbye", "see you", "farewell", "take care"],
+            "satisfaction": ["perfect", "great", "excellent", "awesome", "got it", "understood", "clear", "helpful"],
+            "conversation_enders": ["that's all", "that covers it", "no more questions", "nothing else", "all set", "that's everything"]
         }
         
         # Question intent patterns - RESTORED FULL VERSION
@@ -338,6 +340,77 @@ class SmartHybridChatbot:
             "company_culture": ["culture", "team", "environment", "fit", "values", "work style"],
             "future": ["future", "goals", "plans", "career path", "ambition", "vision"]
         }
+    
+    def should_offer_conversation_closure(self, user_input: str, message_count: int) -> bool:
+        """Determine if we should offer to end the conversation"""
+        input_lower = user_input.lower().strip()
+        
+        # Check for satisfaction/completion signals
+        satisfaction_signals = any(word in input_lower for word in self.conversation_patterns["satisfaction"])
+        thanks_signals = any(word in input_lower for word in self.conversation_patterns["thanks"])
+        ending_signals = any(phrase in input_lower for phrase in self.conversation_patterns["conversation_enders"])
+        
+        # Check for conversation length (offer closure after comprehensive responses)
+        long_conversation = message_count >= 8  # After 4 exchanges
+        
+        # Check for specific closure indicators
+        closure_phrases = [
+            "that answers my question", "that helps", "that's what I needed",
+            "got all the info", "all the information", "covers everything",
+            "that's sufficient", "that works", "sounds good"
+        ]
+        specific_closure = any(phrase in input_lower for phrase in closure_phrases)
+        
+        return (satisfaction_signals and thanks_signals) or ending_signals or specific_closure or long_conversation
+    
+    def detect_conversation_ending_intent(self, user_input: str) -> str:
+        """Detect if user wants to end conversation"""
+        input_lower = user_input.lower().strip()
+        
+        # Strong ending signals
+        ending_phrases = [
+            "no", "no more", "no other", "no further", "nothing else", "nothing more",
+            "that's all", "that's it", "all set", "i'm good", "i'm all set",
+            "end conversation", "end chat", "stop", "quit", "exit", "done",
+            "that covers it", "that's everything", "sufficient", "enough"
+        ]
+        
+        if any(phrase in input_lower for phrase in ending_phrases):
+            return "end_conversation"
+        
+        # Continuation signals
+        continue_phrases = [
+            "yes", "yeah", "yep", "sure", "actually", "also", "one more",
+            "another question", "what about", "can you tell me", "i'd like to know"
+        ]
+        
+        if any(phrase in input_lower for phrase in continue_phrases):
+            return "continue_conversation"
+        
+        return "unclear"
+    
+    def get_conversation_closure_offer(self) -> str:
+        """Offer to close the conversation naturally"""
+        return """Is there anything else you'd like to know about Aniket's background, skills, or experience? 
+
+Or if you have all the information you need, I can end our conversation here and you can always start fresh if you have more questions later."""
+    
+    def get_conversation_ending_response(self, user_name: str = "") -> str:
+        """Provide a natural conversation ending"""
+        name_part = f" {user_name}" if user_name else ""
+        
+        return f"""Perfect! Thank you{name_part} for your interest in Aniket Shirsat. 
+
+I hope the information was helpful in understanding his qualifications and potential value to your organization. If you'd like to connect with him directly, his contact information is:
+
+Email: ashirsat@iu.edu
+LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
+
+Feel free to start a new conversation anytime if you have more questions. Have a great day! 👋"""
+    
+    def get_conversation_continuation_response(self) -> str:
+        """Response when user wants to continue"""
+        return """Great! What else would you like to know about Aniket? I can provide more details about his projects, skills, experience, or any other aspects of his background."""
     
     def analyze_intent(self, user_input: str) -> str:
         """Analyze user intent from input with enhanced natural language understanding - COMPREHENSIVE VERSION"""
@@ -382,6 +455,20 @@ class SmartHybridChatbot:
         # Contact and reaching out - expanded
         elif any(word in input_lower for word in ["contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "how to reach", "communication", "contact info", "contact information", "reach out", "get hold", "find him", "connect with"]):
             return "contact"
+        
+        # Message for contact - NEW: Detect when someone leaves a message with contact info
+        elif any(phrase in input_lower for phrase in ["leave a message", "message for him", "ask him to contact", "have him call", "get back to me", "follow up", "reach out to me", "contact me"]) or (any(word in input_lower for word in ["my number", "my phone", "call me", "reach me"]) and any(char.isdigit() for char in user_input)):
+            return "message_for_contact"
+        
+        # Conversation flow management - NEW
+        elif st.session_state.get('awaiting_closure_response', False):
+            ending_intent = self.detect_conversation_ending_intent(user_input)
+            if ending_intent == "end_conversation":
+                return "end_conversation"
+            elif ending_intent == "continue_conversation":
+                return "continue_conversation"
+            else:
+                return "general"  # Treat unclear responses as new questions
         
         # Availability and timing - expanded
         elif any(word in input_lower for word in ["available", "availability", "start", "starting", "when", "timeline", "notice", "free", "ready to work", "ready", "can start", "join", "begin", "commence", "timing", "schedule"]):
@@ -453,6 +540,13 @@ class SmartHybridChatbot:
             response = self.get_personal_response(context, is_casual, is_formal)
         elif intent == "contact":
             response = self.get_contact_response(context, is_casual, is_formal)
+        elif intent == "message_for_contact":
+            response = self.handle_message_for_contact(user_input)
+        elif intent == "end_conversation":
+            response = self.get_conversation_ending_response(st.session_state.get('user_display_name', ''))
+        elif intent == "continue_conversation":
+            response = self.get_conversation_continuation_response()
+            st.session_state.awaiting_closure_response = False  # Reset state
         elif intent == "availability":
             response = self.get_availability_response(context, is_casual, is_formal)
         elif intent == "salary":
@@ -465,6 +559,13 @@ class SmartHybridChatbot:
             response = self.get_future_response(context, is_casual, is_formal)
         else:
             response = self.get_general_response(is_casual)
+        
+        # Check if we should offer conversation closure after the response
+        message_count = len(st.session_state.messages) // 2  # Approximate exchange count
+        if self.should_offer_conversation_closure(user_input, message_count) and not st.session_state.get('awaiting_closure_response', False):
+            # Add the closure offer to the response
+            response += "\n\n" + self.get_conversation_closure_offer()
+            st.session_state.awaiting_closure_response = True
             
         return response, intent
     
@@ -578,6 +679,33 @@ LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
 GitHub: https://github.com/AShirsat96
 
 He's actively seeking opportunities and responds to professional inquiries within 1-2 business days."""
+    
+    def handle_message_for_contact(self, user_input: str) -> str:
+        """Handle cases where users leave messages for Aniket to contact them"""
+        # Extract phone number if present
+        phone_pattern = r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})'
+        phone_match = re.search(phone_pattern, user_input)
+        
+        if phone_match:
+            phone_number = phone_match.group(1)
+            return f"""Thank you for leaving your contact information. I've noted that you'd like Aniket to reach out to you at {phone_number}.
+
+I'll make sure Aniket sees your message and he will follow up with you directly within 1-2 business days.
+
+In the meantime, you can also reach him directly at:
+Email: ashirsat@iu.edu
+LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
+
+Is there anything specific about his background or qualifications you'd like me to share while you're here?"""
+        else:
+            return """Thank you for your message. I'll make sure Aniket sees this and he will follow up with you directly within 1-2 business days.
+
+You can also reach him directly at:
+Email: ashirsat@iu.edu
+Phone: +1 463 279 6071
+LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
+
+Is there anything specific about his background or qualifications you'd like me to share while you're here?"""
     
     def get_availability_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         return f"""Aniket is currently completing his {self.aniket_data['personal_info']['current_status'].lower()} while serving as a {self.aniket_data['personal_info']['current_role'].lower()}, and he is {self.aniket_data['career_goals'].lower()}.
@@ -823,6 +951,11 @@ def main():
         placeholder = "Ask about Aniket's skills, experience, projects, or why you should hire him..."
     
     if prompt := st.chat_input(placeholder):
+        # Check if we need to reset conversation first
+        if check_and_reset_if_needed():
+            st.rerun()
+            return
+        
         st.session_state.messages.append({"role": "user", "content": prompt})
         
         if st.session_state.asking_for_name:
@@ -941,17 +1074,57 @@ def main():
             
             st.session_state.messages.append({"role": "assistant", "content": response})
             
-            # Enhanced logging with conversation threads
-            log_conversation_with_thread(
-                st.session_state.session_id,
-                prompt,
-                response,
-                intent,
-                st.session_state.user_name,
-                st.session_state.user_email
-            )
+            # Handle conversation ending
+            if intent == "end_conversation":
+                # End the conversation and reset for fresh start
+                st.session_state.conversation_ending = True
+                
+                # Save final conversation thread
+                if hasattr(st.session_state, 'conversation_thread') and st.session_state.conversation_thread:
+                    # Add final user message to thread
+                    st.session_state.conversation_thread.append({
+                        'role': 'user',
+                        'content': prompt,
+                        'timestamp': datetime.now().isoformat()
+                    })
+                    # Add final bot response to thread
+                    st.session_state.conversation_thread.append({
+                        'role': 'assistant',
+                        'content': response,
+                        'intent': intent,
+                        'timestamp': datetime.now().isoformat()
+                    })
+                    
+                    save_complete_conversation(
+                        st.session_state.session_id,
+                        st.session_state.get('user_name', ''),
+                        st.session_state.get('user_email', ''),
+                        st.session_state.conversation_thread
+                    )
+                
+                # Schedule reset for next interaction
+                st.session_state.reset_on_next_message = True
+            else:
+                # Enhanced logging with conversation threads
+                log_conversation_with_thread(
+                    st.session_state.session_id,
+                    prompt,
+                    response,
+                    intent,
+                    st.session_state.user_name,
+                    st.session_state.user_email
+                )
         
         st.rerun()
+
+# Add reset check at the beginning of the chat input
+def check_and_reset_if_needed():
+    """Check if we need to reset the conversation"""
+    if st.session_state.get('reset_on_next_message', False):
+        reset_conversation_session()
+        st.session_state.reset_on_next_message = False
+        return True
+    return False
 
 # Add conversation thread tracking functions
 def log_conversation_with_thread(session_id: str, user_message: str, bot_response: str, intent: str, user_name: str = "", user_email: str = ""):
@@ -988,7 +1161,49 @@ def log_conversation_with_thread(session_id: str, user_message: str, bot_respons
             st.session_state.conversation_thread.copy()
         )
 
-def save_complete_conversation(session_id: str, user_name: str, user_email: str, conversation_messages: list) -> bool:
+def reset_conversation_session():
+    """Reset the conversation session for a fresh start"""
+    # Save the current conversation thread before resetting
+    if hasattr(st.session_state, 'conversation_thread') and st.session_state.conversation_thread:
+        save_complete_conversation(
+            st.session_state.session_id,
+            st.session_state.get('user_name', ''),
+            st.session_state.get('user_email', ''),
+            st.session_state.conversation_thread
+        )
+    
+    # Keep user info but reset conversation state
+    user_name = st.session_state.get('user_name', '')
+    user_email = st.session_state.get('user_email', '')
+    user_display_name = st.session_state.get('user_display_name', '')
+    user_info_collected = st.session_state.get('user_info_collected', False)
+    
+    # Clear conversation-specific state
+    for key in list(st.session_state.keys()):
+        if key not in ['user_name', 'user_email', 'user_display_name', 'user_info_collected', 'chatbot']:
+            del st.session_state[key]
+    
+    # Restore user info
+    st.session_state.user_name = user_name
+    st.session_state.user_email = user_email
+    st.session_state.user_display_name = user_display_name
+    st.session_state.user_info_collected = user_info_collected
+    
+    # Create new session ID
+    st.session_state.session_id = f"full_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    # Reset conversation state
+    st.session_state.awaiting_closure_response = False
+    st.session_state.conversation_thread = []
+    
+    # Set fresh greeting message
+    greeting_name = f" {user_display_name}" if user_display_name else ""
+    st.session_state.messages = [
+        {
+            "role": "assistant", 
+            "content": f"Hello{greeting_name}! I'm ready to help with any new questions about Aniket's background, skills, or experience. What would you like to know?"
+        }
+    ]
     """Save complete conversation thread"""
     try:
         db = get_shared_db()
