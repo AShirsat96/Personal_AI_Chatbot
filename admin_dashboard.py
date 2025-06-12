@@ -26,7 +26,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-# GitHub Gist Database Class (same as chat widget)
+# GitHub Gist Database Class (enhanced)
 class GitHubGistDatabase:
     """Free shared database using GitHub Gist"""
     
@@ -97,7 +97,8 @@ class GitHubGistDatabase:
         """Get default data structure"""
         return {
             "user_interactions": [],
-            "conversations": [],  # 📊 NEW: Store full conversations
+            "conversations": [],
+            "conversation_threads": [],  # NEW: Complete conversation threads
             "resume_content": None,
             "avatar_data": None,
             "app_settings": {},
@@ -151,7 +152,6 @@ class GitHubGistDatabase:
             st.error(f"Error loading user interactions: {str(e)}")
             return pd.DataFrame(columns=['timestamp', 'name', 'email', 'session_id'])
     
-    # 📊 NEW: Conversation analytics methods
     def get_conversations(self) -> pd.DataFrame:
         """Get all conversation data"""
         try:
@@ -174,6 +174,96 @@ class GitHubGistDatabase:
                 'user_message', 'bot_response', 'detected_intent', 
                 'response_length', 'message_length'
             ])
+    
+    # NEW: Conversation thread methods
+    def get_conversation_threads(self) -> pd.DataFrame:
+        """Get all complete conversation threads"""
+        try:
+            data = self._load_gist_data()
+            threads = data.get("conversation_threads", [])
+            
+            if threads:
+                # Create summary dataframe
+                thread_summaries = []
+                for thread in threads:
+                    summary = {
+                        'session_id': thread['session_id'],
+                        'user_name': thread['user_name'],
+                        'user_email': thread['user_email'],
+                        'start_time': thread['start_time'],
+                        'end_time': thread['end_time'],
+                        'total_messages': thread['total_messages'],
+                        'duration_minutes': self.calculate_conversation_duration(thread['start_time'], thread['end_time']),
+                        'saved_at': thread['saved_at']
+                    }
+                    thread_summaries.append(summary)
+                
+                return pd.DataFrame(thread_summaries)
+            else:
+                return pd.DataFrame(columns=[
+                    'session_id', 'user_name', 'user_email', 'start_time', 
+                    'end_time', 'total_messages', 'duration_minutes', 'saved_at'
+                ])
+                
+        except Exception as e:
+            st.error(f"Error loading conversation threads: {str(e)}")
+            return pd.DataFrame()
+    
+    def calculate_conversation_duration(self, start_time: str, end_time: str) -> float:
+        """Calculate conversation duration in minutes"""
+        try:
+            start = pd.to_datetime(start_time)
+            end = pd.to_datetime(end_time)
+            duration = (end - start).total_seconds() / 60
+            return round(duration, 1)
+        except:
+            return 0.0
+    
+    def get_complete_conversation(self, session_id: str) -> dict:
+        """Get complete conversation thread by session ID"""
+        try:
+            data = self._load_gist_data()
+            threads = data.get("conversation_threads", [])
+            
+            for thread in threads:
+                if thread['session_id'] == session_id:
+                    return thread
+            
+            return None
+            
+        except Exception as e:
+            st.error(f"Error loading conversation: {str(e)}")
+            return None
+    
+    def save_conversation_thread(self, session_id: str, user_name: str, user_email: str, conversation_messages: list) -> bool:
+        """Save complete conversation thread"""
+        try:
+            data = self._load_gist_data()
+            
+            # Create conversation thread entry
+            conversation_thread = {
+                "session_id": session_id,
+                "user_name": user_name,
+                "user_email": user_email,
+                "start_time": conversation_messages[0]['timestamp'] if conversation_messages else datetime.now().isoformat(),
+                "end_time": conversation_messages[-1]['timestamp'] if conversation_messages else datetime.now().isoformat(),
+                "total_messages": len(conversation_messages),
+                "conversation_flow": conversation_messages,  # Complete conversation
+                "saved_at": datetime.now().isoformat()
+            }
+            
+            # Add to conversation threads
+            if "conversation_threads" not in data:
+                data["conversation_threads"] = []
+            
+            data["conversation_threads"].append(conversation_thread)
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            st.error(f"Error saving conversation thread: {str(e)}")
+            return False
     
     def save_resume(self, filename: str, content: str, file_type: str, metadata: dict) -> bool:
         """Save resume content"""
@@ -317,11 +407,26 @@ def load_user_data_shared() -> pd.DataFrame:
     db = get_shared_db()
     return db.get_user_interactions()
 
-# 📊 NEW: Conversation data functions
 def load_conversation_data_shared() -> pd.DataFrame:
     """Load conversation data from shared database"""
     db = get_shared_db()
     return db.get_conversations()
+
+# NEW: Conversation thread functions
+def load_conversation_threads_shared() -> pd.DataFrame:
+    """Load conversation threads from shared database"""
+    db = get_shared_db()
+    return db.get_conversation_threads()
+
+def get_complete_conversation_shared(session_id: str) -> dict:
+    """Get complete conversation thread"""
+    db = get_shared_db()
+    return db.get_complete_conversation(session_id)
+
+def save_conversation_thread_shared(session_id: str, user_name: str, user_email: str, messages: list) -> bool:
+    """Save complete conversation thread"""
+    db = get_shared_db()
+    return db.save_conversation_thread(session_id, user_name, user_email, messages)
 
 def analyze_intent_patterns(df: pd.DataFrame) -> Dict:
     """Analyze intent patterns from conversation data"""
@@ -644,7 +749,618 @@ class AniketChatbotAI:
     def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
 
-# 📊 NEW: Enhanced analytics functions
+# NEW: Enhanced conversation tracking functions
+def display_complete_conversation(conversation_thread: dict):
+    """Display a complete conversation thread in chat format"""
+    st.markdown(f"""
+    ### 💬 Complete Conversation
+    **User:** {conversation_thread['user_name']} ({conversation_thread['user_email']})  
+    **Session:** {conversation_thread['session_id']}  
+    **Duration:** {calculate_conversation_duration(conversation_thread['start_time'], conversation_thread['end_time'])} minutes  
+    **Total Messages:** {conversation_thread['total_messages']}
+    """)
+    
+    st.markdown("---")
+    
+    # Display conversation flow
+    messages = conversation_thread['conversation_flow']
+    
+    for i, message in enumerate(messages):
+        timestamp = pd.to_datetime(message['timestamp']).strftime('%H:%M:%S')
+        
+        if message['role'] == 'user':
+            # User message
+            st.markdown(f"""
+            <div style="
+                display: flex; 
+                justify-content: flex-end; 
+                margin: 10px 0;
+            ">
+                <div style="
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 12px 16px;
+                    border-radius: 18px 18px 4px 18px;
+                    max-width: 70%;
+                    margin-left: 30%;
+                ">
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">
+                        {conversation_thread['user_name']} • {timestamp}
+                    </div>
+                    {message['content']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        else:
+            # Bot message
+            intent_badge = ""
+            if 'intent' in message:
+                intent_colors = {
+                    'hiring': '#e74c3c', 'skills': '#3498db', 'projects': '#f39c12',
+                    'education': '#2ecc71', 'personal': '#9b59b6', 'contact': '#e67e22',
+                    'general': '#95a5a6'
+                }
+                color = intent_colors.get(message['intent'], '#95a5a6')
+                intent_badge = f"""
+                <span style="
+                    background: {color}; 
+                    color: white; 
+                    padding: 2px 6px; 
+                    border-radius: 8px; 
+                    font-size: 10px;
+                    margin-left: 8px;
+                ">
+                    {message['intent'].upper()}
+                </span>
+                """
+            
+            st.markdown(f"""
+            <div style="
+                display: flex; 
+                align-items: flex-start; 
+                margin: 10px 0;
+            ">
+                <div style="
+                    width: 35px; 
+                    height: 35px; 
+                    background: #667eea; 
+                    border-radius: 50%; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    color: white; 
+                    font-size: 18px;
+                    margin-right: 10px;
+                ">🤖</div>
+                <div style="
+                    background: #f1f3f5;
+                    padding: 12px 16px;
+                    border-radius: 18px 18px 18px 4px;
+                    max-width: 70%;
+                ">
+                    <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                        Aniket's AI Assistant • {timestamp} {intent_badge}
+                    </div>
+                    {message['content']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+def calculate_conversation_duration(start_time: str, end_time: str) -> float:
+    """Calculate conversation duration in minutes"""
+    try:
+        start = pd.to_datetime(start_time)
+        end = pd.to_datetime(end_time)
+        duration = (end - start).total_seconds() / 60
+        return round(duration, 1)
+    except:
+        return 0.0
+
+def enhanced_conversation_analysis():
+    """Enhanced conversation analysis with more detailed insights"""
+    conversation_data = load_conversation_data_shared()
+    
+    if conversation_data.empty:
+        st.info("No conversation data available yet.")
+        return
+    
+    # Convert timestamp
+    conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
+    
+    # Add derived columns for analysis
+    conversation_data['hour'] = conversation_data['timestamp'].dt.hour
+    conversation_data['day_of_week'] = conversation_data['timestamp'].dt.day_name()
+    conversation_data['date'] = conversation_data['timestamp'].dt.date
+    
+    # Advanced metrics
+    st.subheader("📊 Advanced Conversation Analytics")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        total_sessions = conversation_data['session_id'].nunique()
+        st.metric("Unique Sessions", total_sessions)
+    
+    with col2:
+        avg_messages_per_session = conversation_data.groupby('session_id').size().mean()
+        st.metric("Avg Messages/Session", f"{avg_messages_per_session:.1f}")
+    
+    with col3:
+        avg_response_length = conversation_data['response_length'].mean()
+        st.metric("Avg Response Length", f"{avg_response_length:.0f} chars")
+    
+    with col4:
+        total_unique_users = conversation_data['user_email'].nunique()
+        st.metric("Unique Users", total_unique_users)
+    
+    # Time-based analysis
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🕐 Activity by Hour")
+        hourly_activity = conversation_data['hour'].value_counts().sort_index()
+        st.bar_chart(hourly_activity)
+    
+    with col2:
+        st.subheader("📅 Activity by Day")
+        daily_activity = conversation_data['day_of_week'].value_counts()
+        st.bar_chart(daily_activity)
+    
+    # Intent analysis over time
+    st.subheader("🎯 Intent Trends Over Time")
+    intent_over_time = conversation_data.groupby(['date', 'detected_intent']).size().unstack(fill_value=0)
+    st.line_chart(intent_over_time)
+
+def conversation_search_and_filter():
+    """Advanced search and filtering for conversations"""
+    st.subheader("🔍 Conversation Search & Filter")
+    
+    conversation_data = load_conversation_data_shared()
+    
+    if conversation_data.empty:
+        st.info("No conversation data to search.")
+        return
+    
+    # Convert timestamp
+    conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
+    
+    # Filters
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # Intent filter
+        unique_intents = ['All'] + list(conversation_data['detected_intent'].unique())
+        selected_intent = st.selectbox("Filter by Intent", unique_intents)
+    
+    with col2:
+        # Date filter
+        date_range = st.date_input(
+            "Date Range",
+            value=(conversation_data['timestamp'].min().date(), conversation_data['timestamp'].max().date()),
+            min_value=conversation_data['timestamp'].min().date(),
+            max_value=conversation_data['timestamp'].max().date()
+        )
+    
+    with col3:
+        # User filter
+        unique_users = ['All'] + list(conversation_data['user_name'].dropna().unique())
+        selected_user = st.selectbox("Filter by User", unique_users)
+    
+    # Search box
+    search_term = st.text_input("🔍 Search in messages", placeholder="Enter keywords to search...")
+    
+    # Apply filters
+    filtered_data = conversation_data.copy()
+    
+    if selected_intent != 'All':
+        filtered_data = filtered_data[filtered_data['detected_intent'] == selected_intent]
+    
+    if selected_user != 'All':
+        filtered_data = filtered_data[filtered_data['user_name'] == selected_user]
+    
+    if len(date_range) == 2:
+        start_date, end_date = date_range
+        filtered_data = filtered_data[
+            (filtered_data['timestamp'].dt.date >= start_date) & 
+            (filtered_data['timestamp'].dt.date <= end_date)
+        ]
+    
+    if search_term:
+        mask = (
+            filtered_data['user_message'].str.contains(search_term, case=False, na=False) |
+            filtered_data['bot_response'].str.contains(search_term, case=False, na=False)
+        )
+        filtered_data = filtered_data[mask]
+    
+    # Display results
+    st.write(f"**Found {len(filtered_data)} conversations matching your criteria**")
+    
+    if not filtered_data.empty:
+        # Display conversations
+        for _, conv in filtered_data.sort_values('timestamp', ascending=False).head(50).iterrows():
+            with st.expander(f"🕐 {conv['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} - {conv['user_name']} ({conv['detected_intent']})"):
+                st.markdown(f"**👤 User Message:**")
+                st.write(conv['user_message'])
+                st.markdown(f"**🤖 Bot Response:**")
+                st.write(conv['bot_response'])
+                
+                # Metadata
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.write(f"**Session ID:** {conv['session_id']}")
+                with col2:
+                    st.write(f"**Email:** {conv['user_email']}")
+                with col3:
+                    st.write(f"**Response Length:** {conv['response_length']} chars")
+
+def conversation_export_options():
+    """Enhanced export options for conversation data"""
+    st.subheader("📥 Advanced Export Options")
+    
+    conversation_data = load_conversation_data_shared()
+    
+    if conversation_data.empty:
+        st.info("No conversation data to export.")
+        return
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**📊 Standard Exports**")
+        
+        # Full conversation export
+        conv_csv = conversation_data.to_csv(index=False)
+        st.download_button(
+            label="📥 Complete Conversations (CSV)",
+            data=conv_csv,
+            file_name=f"conversations_complete_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            mime="text/csv"
+        )
+        
+        # JSON export for backup
+        conv_json = conversation_data.to_json(orient='records', date_format='iso')
+        st.download_button(
+            label="📥 Complete Conversations (JSON)",
+            data=conv_json,
+            file_name=f"conversations_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+            mime="application/json"
+        )
+    
+    with col2:
+        st.markdown("**📈 Analytics Exports**")
+        
+        # Intent summary
+        intent_summary = conversation_data.groupby('detected_intent').agg({
+            'user_message': 'count',
+            'response_length': 'mean',
+            'message_length': 'mean'
+        }).round(2)
+        intent_summary.columns = ['Total_Questions', 'Avg_Response_Length', 'Avg_Question_Length']
+        
+        intent_csv = intent_summary.to_csv()
+        st.download_button(
+            label="📊 Intent Analytics (CSV)",
+            data=intent_csv,
+            file_name=f"intent_analytics_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+        
+        # User engagement summary
+        user_summary = conversation_data.groupby('user_email').agg({
+            'user_message': 'count',
+            'session_id': 'nunique',
+            'detected_intent': lambda x: len(x.unique()),
+            'timestamp': ['min', 'max']
+        }).round(2)
+        
+        user_csv = user_summary.to_csv()
+        st.download_button(
+            label="👥 User Engagement (CSV)",
+            data=user_csv,
+            file_name=f"user_engagement_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+
+def live_conversation_monitor():
+    """Real-time conversation monitoring with auto-refresh"""
+    st.subheader("📡 Live Conversation Monitor")
+    
+    # Auto-refresh controls
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        auto_refresh = st.checkbox("🔄 Auto-refresh every 10 seconds")
+    
+    with col2:
+        if st.button("🔄 Manual Refresh"):
+            st.rerun()
+    
+    with col3:
+        sound_alerts = st.checkbox("🔔 Sound alerts (coming soon)")
+    
+    # Auto-refresh logic
+    if auto_refresh:
+        time.sleep(10)
+        st.rerun()
+    
+    conversation_data = load_conversation_data_shared()
+    
+    if conversation_data.empty:
+        st.info("🎯 Monitoring active - waiting for conversations...")
+        st.markdown("**Test the connection:**")
+        st.markdown("1. Open your chatbot widget in another tab")
+        st.markdown("2. Send a test message")
+        st.markdown("3. Watch it appear here in real-time!")
+        return
+    
+    # Convert timestamp
+    conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
+    
+    # Show recent activity (last 24 hours)
+    recent_cutoff = datetime.now() - pd.Timedelta(hours=24)
+    recent_data = conversation_data[conversation_data['timestamp'] > recent_cutoff]
+    
+    # Real-time stats
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("🕐 Last 24h Messages", len(recent_data))
+    
+    with col2:
+        active_sessions_24h = recent_data['session_id'].nunique()
+        st.metric("👥 Active Sessions (24h)", active_sessions_24h)
+    
+    with col3:
+        if not recent_data.empty:
+            last_activity = recent_data['timestamp'].max()
+            time_since = datetime.now() - last_activity.replace(tzinfo=None)
+            minutes_ago = int(time_since.total_seconds() / 60)
+            st.metric("⏱️ Last Activity", f"{minutes_ago}m ago")
+        else:
+            st.metric("⏱️ Last Activity", "No recent activity")
+    
+    with col4:
+        if not recent_data.empty:
+            top_intent_24h = recent_data['detected_intent'].mode().iloc[0] if not recent_data['detected_intent'].mode().empty else "N/A"
+            st.metric("🎯 Top Intent (24h)", top_intent_24h)
+        else:
+            st.metric("🎯 Top Intent (24h)", "N/A")
+    
+    # Live feed of recent conversations
+    st.markdown("---")
+    st.markdown("**📱 Live Conversation Feed (Last 20 messages)**")
+    
+    recent_conversations = conversation_data.sort_values('timestamp', ascending=False).head(20)
+    
+    for i, (_, conv) in enumerate(recent_conversations.iterrows()):
+        # Time since message
+        time_since = datetime.now() - conv['timestamp'].replace(tzinfo=None)
+        
+        # Color coding based on recency
+        if time_since.total_seconds() < 300:  # 5 minutes
+            border_color = "#28a745"  # Green
+            time_indicator = "🟢 LIVE"
+        elif time_since.total_seconds() < 3600:  # 1 hour
+            border_color = "#ffc107"  # Yellow
+            time_indicator = "🟡 Recent"
+        else:
+            border_color = "#6c757d"  # Gray
+            time_indicator = "⚪ Older"
+        
+        # Intent color coding
+        intent_colors = {
+            'hiring': '#e74c3c',
+            'skills': '#3498db',
+            'projects': '#f39c12',
+            'education': '#2ecc71',
+            'personal': '#9b59b6',
+            'contact': '#e67e22',
+            'general': '#95a5a6'
+        }
+        intent_color = intent_colors.get(conv['detected_intent'], '#95a5a6')
+        
+        # Format timestamp
+        timestamp_str = conv['timestamp'].strftime('%H:%M:%S')
+        
+        # Display conversation
+        st.markdown(f"""
+        <div style="
+            border-left: 4px solid {border_color}; 
+            padding: 12px; 
+            margin: 8px 0; 
+            background: #f8f9fa;
+            border-radius: 0 8px 8px 0;
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong>{timestamp_str}</strong> - <strong>{conv['user_name']}</strong>
+                <span style="background: {intent_color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                    {conv['detected_intent'].upper()}
+                </span>
+                <span style="font-size: 12px; color: #666;">{time_indicator}</span>
+            </div>
+            <div style="margin: 4px 0;">
+                <strong>👤 Q:</strong> {conv['user_message'][:100]}{'...' if len(conv['user_message']) > 100 else ''}
+            </div>
+            <div style="color: #666; font-size: 14px;">
+                <strong>🤖 A:</strong> {conv['bot_response'][:150]}{'...' if len(conv['bot_response']) > 150 else ''}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+def conversation_threads_tab():
+    """Complete conversation threads management tab"""
+    st.header("💬 Complete Conversation Threads")
+    
+    # Load conversation threads
+    threads_df = load_conversation_threads_shared()
+    
+    if threads_df.empty:
+        st.info("📝 No complete conversation threads saved yet.")
+        st.markdown("""
+        **How conversation threads work:**
+        1. Each user session creates a conversation thread
+        2. All messages in that session are saved together
+        3. You can view the complete conversation flow
+        4. Threads are automatically saved when sessions end
+        """)
+        return
+    
+    # Convert timestamps for display
+    threads_df['start_time'] = pd.to_datetime(threads_df['start_time'])
+    threads_df['end_time'] = pd.to_datetime(threads_df['end_time'])
+    
+    # Summary statistics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        total_threads = len(threads_df)
+        st.metric("Total Conversations", total_threads)
+    
+    with col2:
+        avg_messages = threads_df['total_messages'].mean()
+        st.metric("Avg Messages/Conversation", f"{avg_messages:.1f}")
+    
+    with col3:
+        avg_duration = threads_df['duration_minutes'].mean()
+        st.metric("Avg Duration", f"{avg_duration:.1f}m")
+    
+    with col4:
+        total_messages = threads_df['total_messages'].sum()
+        st.metric("Total Messages", total_messages)
+    
+    # Filters
+    st.subheader("🔍 Filter Conversations")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # User filter
+        unique_users = ['All'] + list(threads_df['user_name'].unique())
+        selected_user = st.selectbox("Filter by User", unique_users)
+    
+    with col2:
+        # Date filter
+        min_date = threads_df['start_time'].min().date()
+        max_date = threads_df['start_time'].max().date()
+        date_range = st.date_input(
+            "Date Range",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date
+        )
+    
+    with col3:
+        # Duration filter
+        min_duration = st.number_input("Min Duration (minutes)", min_value=0.0, value=0.0)
+    
+    # Apply filters
+    filtered_df = threads_df.copy()
+    
+    if selected_user != 'All':
+        filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
+    
+    if len(date_range) == 2:
+        start_date, end_date = date_range
+        filtered_df = filtered_df[
+            (filtered_df['start_time'].dt.date >= start_date) & 
+            (filtered_df['start_time'].dt.date <= end_date)
+        ]
+    
+    if min_duration > 0:
+        filtered_df = filtered_df[filtered_df['duration_minutes'] >= min_duration]
+    
+    st.write(f"**Showing {len(filtered_df)} conversations**")
+    
+    # Conversation list
+    if not filtered_df.empty:
+        # Sort by most recent first
+        filtered_df = filtered_df.sort_values('start_time', ascending=False)
+        
+        for _, thread in filtered_df.iterrows():
+            with st.expander(
+                f"💬 {thread['user_name']} • {thread['start_time'].strftime('%Y-%m-%d %H:%M')} • "
+                f"{thread['total_messages']} messages • {thread['duration_minutes']}m"
+            ):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.write(f"**User:** {thread['user_name']} ({thread['user_email']})")
+                    st.write(f"**Session ID:** {thread['session_id']}")
+                    st.write(f"**Duration:** {thread['duration_minutes']} minutes")
+                
+                with col2:
+                    if st.button(f"👁️ View Full Conversation", key=f"view_{thread['session_id']}"):
+                        st.session_state.selected_conversation = thread['session_id']
+                
+                # Show conversation preview (first and last message)
+                conversation = get_complete_conversation_shared(thread['session_id'])
+                if conversation and conversation['conversation_flow']:
+                    messages = conversation['conversation_flow']
+                    
+                    st.markdown("**Conversation Preview:**")
+                    
+                    # First message
+                    first_msg = messages[0]
+                    if first_msg['role'] == 'user':
+                        st.markdown(f"👤 **First:** {first_msg['content'][:100]}{'...' if len(first_msg['content']) > 100 else ''}")
+                    
+                    # Last message
+                    if len(messages) > 1:
+                        last_msg = messages[-1]
+                        if last_msg['role'] == 'assistant':
+                            st.markdown(f"🤖 **Last:** {last_msg['content'][:100]}{'...' if len(last_msg['content']) > 100 else ''}")
+    
+    # Display selected conversation
+    if hasattr(st.session_state, 'selected_conversation'):
+        st.markdown("---")
+        conversation = get_complete_conversation_shared(st.session_state.selected_conversation)
+        if conversation:
+            display_complete_conversation(conversation)
+            
+            if st.button("❌ Close Conversation View"):
+                del st.session_state.selected_conversation
+                st.rerun()
+
+def export_conversation_threads():
+    """Export complete conversation threads"""
+    st.subheader("📥 Export Complete Conversations")
+    
+    db = get_shared_db()
+    data = db._load_gist_data()
+    threads = data.get("conversation_threads", [])
+    
+    if not threads:
+        st.info("No conversation threads to export.")
+        return
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Export all threads as JSON
+        threads_json = json.dumps(threads, indent=2, default=str)
+        st.download_button(
+            label="📥 Export All Conversations (JSON)",
+            data=threads_json,
+            file_name=f"complete_conversations_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+            mime="application/json",
+            help="Download all conversation threads with complete message history"
+        )
+    
+    with col2:
+        # Export summary as CSV
+        threads_df = load_conversation_threads_shared()
+        if not threads_df.empty:
+            summary_csv = threads_df.to_csv(index=False)
+            st.download_button(
+                label="📊 Export Summary (CSV)",
+                data=summary_csv,
+                file_name=f"conversation_summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",
+                help="Download conversation summary statistics"
+            )
+
+# Enhanced analytics functions
 def enhanced_analytics_tab():
     """Enhanced analytics tab with live conversation data"""
     st.header("📊 Live Analytics & Conversation Insights")
@@ -699,6 +1415,86 @@ def enhanced_analytics_tab():
         st.markdown("1. Open your chatbot widget")
         st.markdown("2. Have a conversation")
         st.markdown("3. Return here to see it appear in real-time!")
+
+def enhanced_analytics_tab_v2():
+    """Enhanced analytics tab with all new features"""
+    st.header("📊 Enhanced Conversation Analytics")
+    
+    # Tabs within analytics
+    subtab1, subtab2, subtab3, subtab4 = st.tabs([
+        "📈 Advanced Analytics", 
+        "🔍 Search & Filter", 
+        "📥 Export Options",
+        "📡 Live Monitor"
+    ])
+    
+    with subtab1:
+        enhanced_conversation_analysis()
+    
+    with subtab2:
+        conversation_search_and_filter()
+    
+    with subtab3:
+        conversation_export_options()
+    
+    with subtab4:
+        live_conversation_monitor()
+
+def live_monitoring_tab():
+    """Live monitoring tab"""
+    st.header("📡 Live Chatbot Monitoring")
+    
+    # Real-time status
+    st.subheader("🔴 Real-time Status")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        db = get_shared_db()
+        if db.use_gist:
+            st.success("🟢 Chatbot Connected")
+        else:
+            st.error("🔴 Chatbot Disconnected")
+    
+    with col2:
+        conversation_data = load_conversation_data_shared()
+        if not conversation_data.empty:
+            conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
+            last_activity = conversation_data['timestamp'].max()
+            if pd.notna(last_activity):
+                time_since = datetime.now() - last_activity.replace(tzinfo=None)
+                if time_since.total_seconds() < 300:  # 5 minutes
+                    st.success(f"🟢 Active {int(time_since.total_seconds())}s ago")
+                else:
+                    st.warning(f"🟡 Last seen {int(time_since.total_seconds()/60)}m ago")
+            else:
+                st.info("🟡 No recent activity")
+        else:
+            st.info("🟡 No activity recorded")
+    
+    with col3:
+        user_data = load_user_data_shared()
+        active_sessions = user_data['session_id'].nunique() if not user_data.empty else 0
+        st.info(f"👥 {active_sessions} Total Sessions")
+    
+    # Auto-refresh toggle
+    st.subheader("⚙️ Monitoring Settings")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        auto_refresh = st.checkbox("🔄 Auto-refresh every 10 seconds")
+    
+    with col2:
+        if st.button("🔄 Manual Refresh"):
+            st.rerun()
+    
+    # Auto-refresh logic
+    if auto_refresh:
+        time.sleep(10)
+        st.rerun()
+    
+    # Enhanced live monitoring
+    enhanced_analytics_tab()
 
 def main():
     """Admin Dashboard - Complete management interface"""
@@ -787,19 +1583,20 @@ def main():
         st.markdown("### 🔗 Database Status")
         show_database_status()
         
-    # Main admin interface - UPDATED WITH NEW TAB
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    # Main admin interface - UPDATED WITH NEW TABS
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📊 Analytics Dashboard", 
         "📄 Resume Management", 
         "🖼️ Avatar Management", 
         "🌐 Website Scraping", 
         "⚙️ System Settings",
-        "📡 Live Monitoring"  # NEW TAB
+        "📡 Live Monitoring",
+        "💬 Complete Conversations"  # NEW TAB
     ])
     
     # Tab 1: Enhanced Analytics Dashboard
     with tab1:
-        enhanced_analytics_tab()
+        enhanced_analytics_tab_v2()
             
     # Tab 2: Resume Management
     with tab2:
@@ -1079,9 +1876,15 @@ def main():
                     else:
                         st.error("Failed to reset data")
 
-    # Tab 6: Live Monitoring - NEW TAB
+    # Tab 6: Live Monitoring
     with tab6:
         live_monitoring_tab()
+
+    # Tab 7: Complete Conversations - NEW TAB
+    with tab7:
+        conversation_threads_tab()
+        st.markdown("---")
+        export_conversation_threads()
 
 def process_resume_file(uploaded_file):
     """Process uploaded resume file"""
@@ -1153,181 +1956,4 @@ def scrape_website(url: str, max_pages: int):
             st.error("Could not retrieve content. Please verify the URL and try again.")
 
 if __name__ == "__main__":
-    main()1:
-        st.subheader("🔄 Real-time Dashboard")
-    with col2:
-        if st.button("🔄 Refresh Data", type="primary"):
-            st.rerun()
-    
-    if not user_data.empty:
-        # Convert timestamp column if it exists
-        if 'timestamp' in user_data.columns:
-            user_data['timestamp'] = pd.to_datetime(user_data['timestamp'], errors='coerce')
-        
-        # Main metrics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>{len(user_data)}</h3>
-                <p>Total Visitors</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            unique_visitors = user_data['email'].nunique()
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>{unique_visitors}</h3>
-                <p>Unique Visitors</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            total_conversations = len(conversation_data)
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>{total_conversations}</h3>
-                <p>Total Messages</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            if not conversation_data.empty:
-                avg_session_length = conversation_data.groupby('session_id').size().mean()
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3>{avg_session_length:.1f}</h3>
-                    <p>Avg Questions/Session</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3>0</h3>
-                    <p>Avg Questions/Session</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # Conversation Analytics Section
-        if not conversation_data.empty:
-            st.markdown("---")
-            st.subheader("🎯 Conversation Intelligence")
-            
-            # Convert timestamp for conversations
-            conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
-            
-            # Intent analysis
-            analytics = analyze_intent_patterns(conversation_data)
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**📈 Most Asked Question Types**")
-                intent_df = pd.DataFrame(list(analytics['intent_distribution'].items()), 
-                                       columns=['Intent', 'Count'])
-                st.bar_chart(intent_df.set_index('Intent'))
-            
-            with col2:
-                st.markdown("**📝 Top 5 Common Questions**")
-                common_q = list(analytics['common_questions'].items())[:5]
-                for question, count in common_q:
-                    # Truncate long questions
-                    display_q = question[:50] + "..." if len(question) > 50 else question
-                    st.write(f"**{count}x:** {display_q}")
-            
-            # Recent conversations
-            st.subheader("💬 Live Conversation Feed")
-            
-            # Show last 10 conversations
-            recent_conversations = conversation_data.sort_values('timestamp', ascending=False).head(10)
-            
-            for _, conv in recent_conversations.iterrows():
-                with st.expander(f"🕐 {conv['timestamp'].strftime('%H:%M:%S')} - {conv['user_name']} ({conv['detected_intent']})"):
-                    st.write(f"**👤 User:** {conv['user_message']}")
-                    st.write(f"**🤖 Bot:** {conv['bot_response'][:200]}{'...' if len(conv['bot_response']) > 200 else ''}")
-                    st.write(f"**📊 Intent:** {conv['detected_intent']} | **Session:** {conv['session_id']}")
-        
-        else:
-            st.info("💬 No conversations recorded yet. Start using the chatbot to see analytics!")
-        
-        # Recent visitors table
-        st.subheader("👥 Recent Visitors")
-        display_data = user_data.copy()
-        if 'timestamp' in display_data.columns:
-            display_data['timestamp'] = display_data['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
-        display_data = display_data.sort_values('timestamp', ascending=False).head(10)
-        st.dataframe(display_data[['timestamp', 'name', 'email']], use_container_width=True)
-        
-        # Export functionality
-        st.subheader("📥 Data Export")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            csv_data = export_user_data_shared()
-            if csv_data:
-                st.download_button(
-                    label="📥 Download Visitor Data (CSV)",
-                    data=csv_data,
-                    file_name=f"aniket_visitors_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    help="Download visitor analytics data"
-                )
-        
-        with col2:
-            if not conversation_data.empty:
-                conv_csv = conversation_data.to_csv(index=False)
-                st.download_button(
-                    label="📥 Download Conversations (CSV)",
-                    data=conv_csv,
-                    file_name=f"aniket_conversations_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    help="Download complete conversation log"
-                )
-    
-    else:
-        st.info("📊 No visitor data available yet. The analytics will populate as users interact with the chatbot.")
-
-def live_monitoring_tab():
-    """Live monitoring tab"""
-    st.header("📡 Live Chatbot Monitoring")
-    
-    # Real-time status
-    st.subheader("🔴 Real-time Status")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        db = get_shared_db()
-        if db.use_gist:
-            st.success("🟢 Chatbot Connected")
-        else:
-            st.error("🔴 Chatbot Disconnected")
-    
-    with col2:
-        conversation_data = load_conversation_data_shared()
-        if not conversation_data.empty:
-            conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
-            last_activity = conversation_data['timestamp'].max()
-            if pd.notna(last_activity):
-                time_since = datetime.now() - last_activity.replace(tzinfo=None)
-                if time_since.total_seconds() < 300:  # 5 minutes
-                    st.success(f"🟢 Active {int(time_since.total_seconds())}s ago")
-                else:
-                    st.warning(f"🟡 Last seen {int(time_since.total_seconds()/60)}m ago")
-            else:
-                st.info("🟡 No recent activity")
-        else:
-            st.info("🟡 No activity recorded")
-    
-    with col3:
-        user_data = load_user_data_shared()
-        active_sessions = user_data['session_id'].nunique() if not user_data.empty else 0
-        st.info(f"👥 {active_sessions} Total Sessions")
-    
-    # Auto-refresh toggle
-    st.subheader("⚙️ Monitoring Settings")
-    
-    col1, col2 = st.columns(2)
-    with col
+    main()
