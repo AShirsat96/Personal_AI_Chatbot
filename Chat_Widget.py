@@ -543,8 +543,6 @@ He's definitely available for interviews and discussions right away. As for star
 The key thing is that he's seriously looking for his next step and isn't just casually browsing opportunities. When he finds the right fit, he's prepared to make it work from a timing perspective.
 
 I'd say if you're interested, it's worth having that conversation sooner rather than later since he's actively in the market."""
-
-        return response
     
     def get_salary_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         return f"""From what I understand, Aniket's approach to compensation is pretty reasonable. He's more focused on finding the right role where he can apply his skills and continue growing than on maximizing the initial salary.
@@ -554,8 +552,6 @@ That said, he's bringing some serious value to the table. His track record inclu
 He's open to discussing competitive packages that are appropriate for data science roles at his experience level. He values opportunities for professional development and is interested in comprehensive packages beyond just base salary.
 
 Given what he's already accomplished - perfect academic performance plus real business results - he represents both immediate capability and strong long-term potential. I think most companies would find the investment worthwhile."""
-
-        return response
     
     def get_location_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         return f"""Aniket's currently based in Indianapolis since he's at Indiana University Indianapolis, but he's pretty flexible about location arrangements.
@@ -565,8 +561,6 @@ He's open to remote work, hybrid setups, or relocating for the right opportunity
 Having that international background from his time at {self.aniket_data['education']['previous']['university']} means he's used to working with diverse teams and adapting to different work environments.
 
 I think his priority is really finding a role where he can make meaningful contributions rather than being tied to a specific location. He's willing to discuss whatever arrangement works best for the company and the role."""
-
-        return response
     
     def get_culture_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         return f"""Aniket seems like someone who'd fit well in most data-driven organizations. His perfect {self.aniket_data['education']['current']['gpa']} GPA while doing research shows he's got that high-performance mindset, but he's also shown he can work collaboratively through his leadership role as {self.aniket_data['leadership'][0]}.
@@ -576,8 +570,6 @@ The fact that he's involved with {self.aniket_data['leadership'][1]} tells you h
 What I think would appeal to him is a culture that values both innovation and measurable impact. He's shown he can work independently on complex problems, but he also likes mentoring others and building community. So probably somewhere that encourages collaboration and continuous learning.
 
 Given his track record of delivering real business results while maintaining academic excellence, I think he'd thrive in environments that appreciate both technical depth and practical problem-solving."""
-
-        return response
     
     def get_future_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         return f"""Aniket's got a pretty clear vision for where he wants to go. Short-term, he's looking to transition from academic research into industry applications where he can apply his ML and AI skills to solve real business challenges.
@@ -587,8 +579,6 @@ Looking further ahead, he wants to become a technical leader in the data science
 Long-term, he's interested in leading strategic data science initiatives and maybe building expertise in specialized areas like cultural AI or optimization systems. His management background gives him that business perspective that could be really valuable as he moves into leadership roles.
 
 What drives him seems to be the opportunity to bridge the gap between cutting-edge technical work and practical business impact. That combination of academic rigor with real-world results suggests he'll keep pushing boundaries while delivering consistent value."""
-
-        return response
     
     def get_general_response(self, is_casual: bool = False) -> str:
         return f"""Let me tell you about Aniket Shirsat. He's currently working on his {self.aniket_data['personal_info']['current_status'].lower()} with a perfect {self.aniket_data['education']['current']['gpa']} GPA while also working as a {self.aniket_data['personal_info']['current_role'].lower()}.
@@ -600,8 +590,6 @@ He's technically solid with {', '.join(self.aniket_data['technical_skills']['pro
 Right now he's {self.aniket_data['career_goals'].lower()} where he can apply his combination of technical expertise and business understanding.
 
 What would you like to know more about? I can tell you why companies should consider hiring him, dive deeper into his technical skills, talk about his specific projects, or cover his educational background."""
-
-        return response
 
 def main():
     """Hybrid Chatbot - Clean interface for embedding"""
@@ -750,28 +738,6 @@ def main():
             font-size: 14px;
             line-height: 1.4;
         }
-        
-        .suggested-questions {
-            padding: 10px 20px;
-            border-top: 1px solid #e1e8ed;
-            background: #fafbfc;
-        }
-        
-        .suggestion-chip {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 6px 12px;
-            margin: 3px;
-            border-radius: 15px;
-            font-size: 12px;
-            cursor: pointer;
-            border: none;
-        }
-        
-        .suggestion-chip:hover {
-            background: #5a6fd8;
-        }
     </style>
     """, unsafe_allow_html=True)
     
@@ -857,44 +823,6 @@ def main():
             st.markdown(user_html, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
-    
-    # Suggested questions after info collection
-    if st.session_state.user_info_collected:
-        st.markdown('<div class="suggested-questions">', unsafe_allow_html=True)
-        st.markdown('<p style="margin: 0 0 8px 0; font-size: 12px; color: #666; font-weight: 500;">💡 Popular Questions:</p>', unsafe_allow_html=True)
-        
-        suggestions = [
-            "Why should I hire Aniket?",
-            "What are his technical skills?", 
-            "Tell me about his projects"
-        ]
-        
-        # Create responsive grid of suggestion buttons
-        cols = st.columns(3)
-        for i, suggestion in enumerate(suggestions):
-            with cols[i % 3]:
-                if st.button(suggestion, key=f"suggest_{i}", 
-                           help=f"Ask: {suggestion}",
-                           use_container_width=True):
-                    # Add suggestion as user message and generate response
-                    st.session_state.messages.append({"role": "user", "content": suggestion})
-                    response, intent = st.session_state.chatbot.generate_response(suggestion)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    # 📊 LOG CONVERSATION TO DASHBOARD
-                    log_conversation_to_dashboard(
-                        st.session_state.session_id,
-                        suggestion,
-                        response,
-                        intent,
-                        st.session_state.user_name,
-                        st.session_state.user_email
-                    )
-                    
-                    st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
     st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
     
     # Chat input
