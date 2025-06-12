@@ -941,7 +941,8 @@ def main():
             
             st.session_state.messages.append({"role": "assistant", "content": response})
             
-            log_conversation_to_dashboard(
+            # Enhanced logging with conversation threads
+            log_conversation_with_thread(
                 st.session_state.session_id,
                 prompt,
                 response,
@@ -951,6 +952,71 @@ def main():
             )
         
         st.rerun()
+
+# Add conversation thread tracking functions
+def log_conversation_with_thread(session_id: str, user_message: str, bot_response: str, intent: str, user_name: str = "", user_email: str = ""):
+    """Enhanced logging that maintains conversation threads"""
+    
+    # Log individual message (existing functionality)
+    log_conversation_to_dashboard(session_id, user_message, bot_response, intent, user_name, user_email)
+    
+    # Build conversation thread
+    if 'conversation_thread' not in st.session_state:
+        st.session_state.conversation_thread = []
+    
+    # Add user message
+    st.session_state.conversation_thread.append({
+        'role': 'user',
+        'content': user_message,
+        'timestamp': datetime.now().isoformat()
+    })
+    
+    # Add bot response
+    st.session_state.conversation_thread.append({
+        'role': 'assistant',
+        'content': bot_response,
+        'intent': intent,
+        'timestamp': datetime.now().isoformat()
+    })
+    
+    # Save thread periodically (every 10 messages) or when session ends
+    if len(st.session_state.conversation_thread) % 10 == 0:  # Every 5 exchanges
+        save_complete_conversation(
+            session_id, 
+            user_name, 
+            user_email, 
+            st.session_state.conversation_thread.copy()
+        )
+
+def save_complete_conversation(session_id: str, user_name: str, user_email: str, conversation_messages: list) -> bool:
+    """Save complete conversation thread"""
+    try:
+        db = get_shared_db()
+        data = db._load_gist_data()
+        
+        # Create conversation thread entry
+        conversation_thread = {
+            "session_id": session_id,
+            "user_name": user_name,
+            "user_email": user_email,
+            "start_time": conversation_messages[0]['timestamp'] if conversation_messages else datetime.now().isoformat(),
+            "end_time": conversation_messages[-1]['timestamp'] if conversation_messages else datetime.now().isoformat(),
+            "total_messages": len(conversation_messages),
+            "conversation_flow": conversation_messages,  # Complete conversation
+            "saved_at": datetime.now().isoformat()
+        }
+        
+        # Add to conversation threads
+        if "conversation_threads" not in data:
+            data["conversation_threads"] = []
+        
+        data["conversation_threads"].append(conversation_thread)
+        data["last_updated"] = datetime.now().isoformat()
+        
+        return db._save_gist_data(data)
+        
+    except Exception as e:
+        return False
 
 if __name__ == "__main__":
     main()
