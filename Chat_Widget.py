@@ -840,6 +840,7 @@ def main():
                 if not corrected_name:
                     response = "What would you prefer I call you?"
                     st.session_state.messages.append({"role": "assistant", "content": response})
+                    st.rerun()
                     return
                 
                 st.session_state.user_display_name = corrected_name
