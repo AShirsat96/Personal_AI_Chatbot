@@ -236,9 +236,10 @@ def get_shared_avatar() -> Optional[str]:
     return db.get_avatar()
 
 class SmartHybridChatbot:
-    """Intelligent hybrid chatbot"""
+    """Intelligent hybrid chatbot with full response capabilities"""
     
     def __init__(self):
+        # Comprehensive knowledge base about Aniket
         self.aniket_data = {
             "personal_info": {
                 "name": "Aniket Shirsat",
@@ -295,77 +296,296 @@ class SmartHybridChatbot:
             "career_goals": "Actively seeking full-time opportunities in data science and machine learning roles",
             "unique_value": "Combines academic excellence with proven ability to deliver quantifiable business results"
         }
+        
+        # Conversation patterns for natural interaction
+        self.conversation_patterns = {
+            "greetings": ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"],
+            "thanks": ["thank", "thanks", "appreciate", "grateful"],
+            "goodbye": ["bye", "goodbye", "see you", "farewell", "take care"]
+        }
+        
+        # Question intent patterns - RESTORED FULL VERSION
+        self.intent_patterns = {
+            "hiring": ["hire", "why", "recommend", "choose", "recruit", "employ", "candidate", "fit", "right person"],
+            "skills": ["skill", "technical", "programming", "tech", "abilities", "competencies", "expertise", "tools", "technologies"],
+            "education": ["education", "school", "degree", "gpa", "university", "academic", "study", "learn", "college"],
+            "experience": ["experience", "work", "job", "employment", "career", "professional", "background", "history"],
+            "projects": ["project", "research", "built", "created", "developed", "worked on", "achievement", "accomplishment"],
+            "personal": ["hobby", "hobbies", "interest", "interests", "personal", "outside work", "free time", "activities"],
+            "contact": ["contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "hire him"],
+            "availability": ["available", "start", "when", "timeline", "notice", "free", "open to"],
+            "salary": ["salary", "compensation", "pay", "money", "cost", "rate", "price"],
+            "location": ["location", "where", "based", "remote", "relocate", "move"],
+            "company_culture": ["culture", "team", "environment", "fit", "values", "work style"],
+            "future": ["future", "goals", "plans", "career path", "ambition", "vision"]
+        }
     
     def analyze_intent(self, user_input: str) -> str:
-        """Analyze user intent"""
+        """Analyze user intent from input with enhanced natural language understanding - FULL VERSION"""
         input_lower = user_input.lower()
         
-        if any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3:
+        # First check for specific question patterns - be more specific about greetings
+        if any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3 and not any(word in input_lower for word in ["skill", "project", "hire", "experience"]):
             return "greeting"
-        elif any(word in input_lower for word in ["thank", "thanks"]):
+        elif any(pattern in input_lower for pattern in ["thank", "thanks", "appreciate", "grateful"]) and not any(word in input_lower for word in ["skill", "project", "hire", "experience"]):
             return "thanks"
-        elif any(word in input_lower for word in ["bye", "goodbye"]):
+        elif any(pattern in input_lower for pattern in ["bye", "goodbye", "see you", "farewell", "take care"]):
             return "goodbye"
-        elif any(word in input_lower for word in ["hire", "why", "recommend", "choose"]):
+        
+        # Enhanced question patterns - check these BEFORE greeting patterns
+        if any(word in input_lower for word in ["hire", "why", "recommend", "choose", "recruit", "employ", "candidate", "should we", "good choice", "worth it", "benefit"]):
             return "hiring"
-        elif any(word in input_lower for word in ["skill", "technical", "programming"]):
+        elif any(word in input_lower for word in ["skill", "technical", "programming", "tech", "abilities", "competencies", "expertise", "tools", "technologies", "what can he do", "good at", "proficient"]):
             return "skills"
-        elif any(word in input_lower for word in ["education", "degree", "gpa", "university"]):
+        elif any(word in input_lower for word in ["education", "school", "degree", "gpa", "university", "academic", "study", "college", "educational background", "qualifications"]):
             return "education"
-        elif any(word in input_lower for word in ["experience", "work", "job"]):
+        elif any(word in input_lower for word in ["experience", "work", "job", "employment", "career", "professional", "background", "history", "worked at", "previous"]):
             return "experience"
-        elif any(word in input_lower for word in ["project", "research", "built"]):
+        elif any(word in input_lower for word in ["project", "research", "built", "created", "developed", "worked on", "achievement", "accomplishment", "portfolio", "examples"]):
             return "projects"
-        elif any(word in input_lower for word in ["contact", "reach", "email"]):
+        elif any(word in input_lower for word in ["hobby", "hobbies", "interest", "interests", "personal", "outside work", "free time", "activities", "personality"]):
+            return "personal"
+        elif any(word in input_lower for word in ["contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "how to reach"]):
             return "contact"
+        elif any(word in input_lower for word in ["available", "start", "when", "timeline", "notice", "free", "availability", "ready to work"]):
+            return "availability"
+        elif any(word in input_lower for word in ["salary", "compensation", "pay", "money", "cost", "rate", "price", "how much", "budget"]):
+            return "salary"
+        elif any(word in input_lower for word in ["location", "where", "based", "remote", "relocate", "move", "lives", "located"]):
+            return "location"
+        elif any(word in input_lower for word in ["culture", "team", "environment", "fit", "values", "work style", "team player", "collaborative"]):
+            return "company_culture"
+        elif any(word in input_lower for word in ["future", "goals", "plans", "career path", "ambition", "vision", "aspirations", "long term", "growth"]):
+            return "future"
         else:
             return "general"
     
+    def extract_context(self, user_input: str) -> Dict[str, bool]:
+        """Extract additional context from user input"""
+        input_lower = user_input.lower()
+        
+        return {
+            "wants_details": any(word in input_lower for word in ["detail", "specific", "more", "tell me more", "elaborate"]),
+            "is_comparison": any(word in input_lower for word in ["vs", "versus", "compare", "better than", "different"]),
+            "is_urgent": any(word in input_lower for word in ["urgent", "asap", "immediate", "quickly", "soon"]),
+            "is_formal": any(word in input_lower for word in ["professional", "formal", "business", "corporate"]),
+            "wants_examples": any(word in input_lower for word in ["example", "instance", "case", "sample"])
+        }
+    
     def generate_response(self, user_input: str) -> tuple[str, str]:
-        """Generate response based on intent"""
+        """Generate intelligent response based on intent analysis - FULL VERSION"""
         intent = self.analyze_intent(user_input)
+        context = self.extract_context(user_input)
         
+        # Add conversational context awareness
+        input_lower = user_input.lower()
+        is_casual = any(word in input_lower for word in ["hey", "hi", "what's up", "sup", "cool", "awesome", "nice"])
+        is_formal = any(word in input_lower for word in ["please", "could you", "would you", "may I", "thank you very much"])
+        
+        # Generate base response with natural conversation flow
         if intent == "greeting":
-            response = """Hello! I'm Aniket's AI assistant. I can help answer questions about his professional background, skills, and experience.
-
-What would you like to know about him?"""
-        
+            response = self.get_greeting_response(is_casual)
+        elif intent == "thanks":
+            response = self.get_thanks_response(is_casual)
+        elif intent == "goodbye":
+            response = self.get_goodbye_response(is_casual)
         elif intent == "hiring":
-            response = f"""You should definitely consider Aniket! He's maintaining a perfect {self.aniket_data['education']['current']['gpa']} GPA while working as a {self.aniket_data['personal_info']['current_role']}.
-
-His vessel fuel optimization project saved {self.aniket_data['experience']['key_projects'][1]['result']} and his cultural ambiguity detection work achieved {self.aniket_data['experience']['key_projects'][0]['result']}.
-
-He's technically solid with {', '.join(self.aniket_data['technical_skills']['programming'])}, {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, and hands-on experience with {', '.join(self.aniket_data['technical_skills']['ai_ml'])}."""
-        
+            response = self.get_hiring_response(context, is_casual, is_formal)
         elif intent == "skills":
-            response = f"""Aniket has strong technical skills in {', '.join(self.aniket_data['technical_skills']['programming'])} and works with {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}.
-
-His AI/ML experience includes {', '.join(self.aniket_data['technical_skills']['ai_ml'])}, and he's applied these in real projects with measurable business impact."""
-        
+            response = self.get_skills_response(context, is_casual, is_formal)
+        elif intent == "education":
+            response = self.get_education_response(context, is_casual, is_formal)
+        elif intent == "experience":
+            response = self.get_experience_response(context, is_casual, is_formal)
         elif intent == "projects":
-            response = f"""Aniket's working on fascinating projects:
-
-1. Cultural Ambiguity Detection - achieved {self.aniket_data['experience']['key_projects'][0]['result']}
-2. Vessel Fuel Optimization - delivering {self.aniket_data['experience']['key_projects'][1]['result']} with {self.aniket_data['experience']['key_projects'][1]['impact']}
-
-Both projects solve real problems with measurable outcomes."""
-        
+            response = self.get_projects_response(context, is_casual, is_formal)
+        elif intent == "personal":
+            response = self.get_personal_response(context, is_casual, is_formal)
         elif intent == "contact":
-            response = f"""Aniket is {self.aniket_data['career_goals'].lower()}, so he's open to conversations about opportunities.
-
-The best way to reach him would be through his professional channels - LinkedIn or university contacts. He's particularly interested in positions where he can apply his ML and optimization skills to real business challenges."""
-        
+            response = self.get_contact_response(context, is_casual, is_formal)
+        elif intent == "availability":
+            response = self.get_availability_response(context, is_casual, is_formal)
+        elif intent == "salary":
+            response = self.get_salary_response(context, is_casual, is_formal)
+        elif intent == "location":
+            response = self.get_location_response(context, is_casual, is_formal)
+        elif intent == "company_culture":
+            response = self.get_culture_response(context, is_casual, is_formal)
+        elif intent == "future":
+            response = self.get_future_response(context, is_casual, is_formal)
         else:
-            response = f"""Aniket Shirsat is currently pursuing his {self.aniket_data['education']['current']['degree']} with a perfect {self.aniket_data['education']['current']['gpa']} GPA while working as a {self.aniket_data['personal_info']['current_role']}.
-
-He's delivered real business impact including {self.aniket_data['achievements'][2]} and {self.aniket_data['achievements'][1]}.
-
-What specific aspect would you like to know more about?"""
+            response = self.get_general_response(is_casual)
             
         return response, intent
+    
+    # RESTORED ALL DETAILED RESPONSE METHODS
+    
+    def get_greeting_response(self, is_casual: bool = False) -> str:
+        return """Hello! I'm Aniket's AI assistant, here to help you learn about his professional background and qualifications.
+
+Aniket is currently pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant.
+
+What would you like to know about him? I can share details about his skills, experience, projects, or why he'd be an excellent addition to your team."""
+    
+    def get_thanks_response(self, is_casual: bool = False) -> str:
+        return """You're welcome! I'm glad I could help you learn more about Aniket.
+
+If you have any other questions about his background, skills, projects, or qualifications, please feel free to ask. Is there anything specific about his experience or technical expertise you'd like to explore further?"""
+    
+    def get_goodbye_response(self, is_casual: bool = False) -> str:
+        return """Thank you for your interest in Aniket Shirsat.
+
+I hope the information has been helpful in understanding his qualifications and potential value to your organization. If you'd like to connect with Aniket directly, please reach out through his professional channels. He's actively pursuing new opportunities and would be pleased to discuss how his skills and experience align with your needs.
+
+Have a great day!"""
+    
+    def get_hiring_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        base_response = f"""I would strongly recommend considering Aniket for your organization. He demonstrates an exceptional combination of academic excellence and measurable business impact.
+
+He maintains a perfect {self.aniket_data['education']['current']['gpa']} GPA in his {self.aniket_data['education']['current']['degree']} while serving as a {self.aniket_data['personal_info']['current_role']}. This demonstrates his ability to manage multiple demanding responsibilities effectively.
+
+His business impact is particularly noteworthy. His vessel fuel optimization project delivered {self.aniket_data['experience']['key_projects'][1]['result']} with a {self.aniket_data['experience']['key_projects'][1]['impact']}. Additionally, his cultural ambiguity detection work achieved {self.aniket_data['experience']['key_projects'][0]['result']}.
+
+From a technical perspective, he is proficient in {', '.join(self.aniket_data['technical_skills']['programming'])}, experienced with {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, and has hands-on expertise in {', '.join(self.aniket_data['technical_skills']['ai_ml'])}.
+
+Furthermore, he brings leadership experience as {self.aniket_data['leadership'][0]} and maintains active involvement with {self.aniket_data['leadership'][1]}. This combination ensures you would be hiring someone capable of delivering results, leading teams, and applying academic rigor to practical business challenges."""
+
+        if context["wants_details"]:
+            base_response += f"""\n\nTo provide specific metrics, the cultural ambiguity detection models he developed are performing at {self.aniket_data['experience']['key_projects'][0]['result']}, which represents excellent performance for this type of natural language processing work. The vessel optimization system operates across 50+ vessels and consistently delivers the projected fuel savings."""
+
+        return base_response
+    
+    def get_skills_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        skills = self.aniket_data['technical_skills']
+        
+        response = f"""Aniket possesses a comprehensive technical foundation. He is proficient in {', '.join(skills['programming'])} for programming and development, which covers the essential requirements for data science applications.
+
+In cloud computing, he has experience with {', '.join(skills['cloud_platforms'])}, enabling him to deploy and scale solutions effectively. His artificial intelligence and machine learning expertise encompasses {', '.join(skills['ai_ml'])}, and importantly, he has applied these technologies in real-world projects rather than purely academic contexts.
+
+What distinguishes him is his ability to translate technical capabilities into measurable business value. His vessel optimization project generated over one million dollars in annual savings, and his cultural ambiguity detection models achieve 90% accuracy in production environments."""
+
+        if context["wants_examples"]:
+            response += f"""\n\nFor example, he developed cultural ambiguity detection models using advanced natural language processing techniques and achieved 90% accuracy. The vessel fuel optimization system he created utilizes predictive modeling and currently operates across 50+ vessels. His experience encompasses the complete pipeline: data processing, model development, deployment, and monitoring."""
+
+        return response
+    
+    def get_education_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        edu = self.aniket_data['education']
+        
+        response = f"""Aniket's educational background is highly impressive. He is currently pursuing his {edu['current']['degree']} at {edu['current']['university']} while maintaining a perfect {edu['current']['gpa']} GPA and simultaneously serving as a {self.aniket_data['personal_info']['current_role']}.
+
+His academic portfolio also includes a {edu['previous']['degree']} from {edu['previous']['university']}. This business foundation is evident in his approach to technical problems, where he focuses on creating solutions with clear business impact rather than purely theoretical applications.
+
+His ability to maintain perfect academic performance while conducting meaningful research demonstrates exceptional time management skills and his capacity to deliver high-quality work under demanding circumstances."""
+
+        if context["wants_details"]:
+            response += f"""\n\nHis current program emphasizes advanced machine learning, computer vision, natural language processing, and statistical analysis. The management background provides him with business strategy perspective that is uncommon among technical candidates, creating a valuable and rare combination of skills."""
+
+        return response
+    
+    def get_experience_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        response = f"""Aniket currently serves as a {self.aniket_data['experience']['current_role']} while completing his Master's degree, which represents a significant professional achievement. The quality and impact of his work are particularly noteworthy.
+
+He developed a cultural ambiguity detection system that analyzes advertisements for cultural sensitivity. The models he created achieve {self.aniket_data['experience']['key_projects'][0]['result']}, which represents excellent performance for this type of natural language processing application.
+
+His vessel fuel optimization project demonstrates substantial business impact. He created predictive algorithms that generate {self.aniket_data['experience']['key_projects'][1]['result']} through a {self.aniket_data['experience']['key_projects'][1]['impact']} across 50+ vessels. This represents quantifiable value creation that directly impacts organizational performance.
+
+Additionally, he serves as {self.aniket_data['leadership'][0]} and maintains active participation in {self.aniket_data['leadership'][1]}. This demonstrates his commitment to balancing technical expertise, leadership responsibilities, and personal development."""
+
+        return response
+    
+    def get_projects_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        projects = self.aniket_data['experience']['key_projects']
+        
+        response = f"""Aniket has been developing projects that demonstrate both technical proficiency and business acumen.
+
+His cultural ambiguity detection project addresses the important challenge of analyzing advertisements for potential cultural sensitivities. The approach utilizes advanced natural language processing and machine learning techniques, achieving {projects[0]['result']}. This type of capability is increasingly valuable for organizations with global reach.
+
+The vessel fuel optimization project demonstrates clear business impact. He developed predictive modeling algorithms that optimize fuel consumption for maritime fleets. The system currently operates across 50+ vessels, delivering {projects[1]['impact']} and translating to {projects[1]['result']} in annual savings.
+
+Both projects represent practical solutions to real business challenges with measurable outcomes, reflecting the type of strategic thinking valuable in data science applications."""
+
+        if context["wants_details"]:
+            response += f"""\n\nFrom a technical implementation perspective, he has developed complete end-to-end pipelines encompassing data processing, custom machine learning algorithm development, production deployment, and ongoing monitoring. The cultural detection work required sophisticated natural language processing preprocessing, while the vessel optimization demanded real-time predictive capabilities."""
+
+        return response
+    
+    def get_personal_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        return f"""Beyond his technical qualifications, Aniket demonstrates well-rounded personal development. He is a member of the {self.aniket_data['leadership'][1]}, which reflects his commitment to discipline and collaborative teamwork. Rowing requires significant coordination and dedication, qualities that translate effectively to professional environments.
+
+He also serves as {self.aniket_data['leadership'][0]}, demonstrating his commitment to community building and mentoring others in the field. This indicates leadership potential and a collaborative approach to professional development.
+
+His interests reflect a genuine passion for learning and addressing complex challenges. He stays current with developments in artificial intelligence and machine learning, and demonstrates enthusiasm for applying academic concepts to practical business problems.
+
+The combination of athletic discipline, community leadership, and intellectual curiosity suggests an individual capable of performing under pressure, collaborating effectively, and maintaining continuous professional growth."""
+    
+    def get_contact_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        return f"""Aniket is {self.aniket_data['career_goals'].lower()}, and therefore welcomes discussions regarding potential opportunities.
+
+The most effective approach would be to connect through his professional networks, particularly LinkedIn or through his university contacts. He has demonstrated responsiveness to inquiries from potential employers.
+
+When reaching out, it would be beneficial to specify the role or opportunity under consideration and how his background aligns with your requirements. He is particularly interested in positions where he can apply his machine learning and optimization expertise to address genuine business challenges.
+
+He can provide a comprehensive portfolio of his work, references from his research activities, and is prepared to conduct technical demonstrations if that would support your evaluation process."""
+    
+    def get_availability_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        return f"""Aniket is currently completing his {self.aniket_data['personal_info']['current_status'].lower()} while serving as a {self.aniket_data['personal_info']['current_role'].lower()}, and he is {self.aniket_data['career_goals'].lower()}.
+
+He is available for interviews and discussions immediately. Regarding start dates, he demonstrates flexibility and can accommodate arrangements that work for both parties. His research experience has involved managing multiple concurrent commitments, providing him with the skills to navigate transition periods effectively.
+
+It is important to note that he is actively pursuing his next career step rather than casually exploring opportunities. When he identifies the appropriate fit, he is prepared to make the necessary arrangements from a timing perspective.
+
+Given his active job search status, I would recommend initiating conversations promptly if there is potential interest."""
+    
+    def get_salary_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        return f"""Aniket approaches compensation discussions with a professional and reasonable perspective. He prioritizes finding the appropriate role where he can apply his skills and continue professional development over maximizing initial compensation.
+
+However, he brings substantial value to any organization. His track record includes {self.aniket_data['experience']['key_projects'][1]['result']} in documented business impact, combined with advanced technical skills in high-demand areas.
+
+He is open to discussing competitive compensation packages appropriate for data science roles at his experience level. He values opportunities for professional development and is interested in comprehensive packages that extend beyond base salary considerations.
+
+Given his accomplishments in both academic excellence and practical business results, he represents both immediate capability and strong long-term potential. Most organizations would find the investment in his capabilities to be highly worthwhile."""
+    
+    def get_location_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        return f"""Aniket is currently based in Indianapolis due to his studies at Indiana University Indianapolis, but he demonstrates considerable flexibility regarding location arrangements.
+
+He is open to remote work arrangements, hybrid configurations, or relocation for appropriate opportunities. His research experience has involved substantial remote collaboration, making him comfortable with distributed team environments.
+
+His international background from his time at {self.aniket_data['education']['previous']['university']} has prepared him for working with diverse teams and adapting to various work environments and cultural contexts.
+
+His primary focus is identifying a role where he can make meaningful contributions rather than being constrained by geographic limitations. He is willing to discuss arrangements that align with organizational needs and role requirements."""
+    
+    def get_culture_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        return f"""Aniket appears well-suited for most data-driven organizations. His perfect {self.aniket_data['education']['current']['gpa']} GPA while conducting research demonstrates a high-performance mindset, while his leadership role as {self.aniket_data['leadership'][0]} shows his ability to work collaboratively.
+
+His involvement with {self.aniket_data['leadership'][1]} demonstrates his understanding of teamwork and discipline. His international background from {self.aniket_data['education']['previous']['university']} has prepared him for working effectively with diverse teams.
+
+He would likely thrive in a culture that values both innovation and measurable impact. He has demonstrated capability in working independently on complex problems while also mentoring others and building community. Organizations that encourage collaboration and continuous learning would be particularly appealing.
+
+Given his track record of delivering measurable business results while maintaining academic excellence, he would be most effective in environments that appreciate both technical depth and practical problem-solving capabilities."""
+    
+    def get_future_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
+        return f"""Aniket has developed a clear vision for his career progression. In the short term, he seeks to transition from academic research into industry applications where he can apply his machine learning and artificial intelligence expertise to address genuine business challenges.
+
+Looking ahead, he aspires to become a technical leader in the data science field. Based on his track record with projects such as the vessel optimization that delivered {self.aniket_data['experience']['key_projects'][1]['result']}, he demonstrates the appropriate mindset, viewing AI and ML as tools for creating measurable business value rather than purely academic exercises.
+
+Long-term, he is interested in leading strategic data science initiatives and potentially developing expertise in specialized areas such as cultural AI or optimization systems. His management background provides him with business perspective that would be valuable as he progresses into leadership roles.
+
+His motivation centers on bridging the gap between cutting-edge technical work and practical business impact. This combination of academic rigor with real-world results suggests he will continue advancing boundaries while consistently delivering value."""
+    
+    def get_general_response(self, is_casual: bool = False) -> str:
+        return f"""Allow me to provide an overview of Aniket Shirsat. He is currently pursuing his {self.aniket_data['personal_info']['current_status'].lower()} with a perfect {self.aniket_data['education']['current']['gpa']} GPA while serving as a {self.aniket_data['personal_info']['current_role'].lower()}.
+
+His distinguishing characteristic is the measurable business impact he has already generated. His accomplishments include achieving {self.aniket_data['achievements'][1]}, delivering {self.aniket_data['achievements'][2]}, and maintaining {self.aniket_data['achievements'][4]}.
+
+From a technical perspective, he is proficient in {', '.join(self.aniket_data['technical_skills']['programming'])}, experienced with {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, and has hands-on experience with machine learning, computer vision, and natural language processing.
+
+Currently, he is {self.aniket_data['career_goals'].lower()} where he can apply his combination of technical expertise and business understanding.
+
+What specific aspect would you like me to address? I can discuss why organizations should consider him for employment, provide details about his technical capabilities, describe his specific projects, or elaborate on his educational background."""
 
 def main():
-    """Clean chatbot with NO suggested questions"""
+    """Full-featured chatbot with NO suggested questions interface"""
     st.set_page_config(
         page_title="Chat with Aniket's AI Assistant",
         page_icon="💬",
@@ -467,12 +687,12 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    # Initialize
+    # Initialize - FULL VERSION
     if "chatbot" not in st.session_state:
         st.session_state.chatbot = SmartHybridChatbot()
     
     if "session_id" not in st.session_state:
-        st.session_state.session_id = f"clean_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        st.session_state.session_id = f"full_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     if "user_info_collected" not in st.session_state:
         st.session_state.user_info_collected = False
@@ -592,7 +812,7 @@ def main():
                 st.session_state.messages.append({"role": "assistant", "content": response})
         
         else:
-            # Normal chat
+            # Normal chat - FULL RESPONSE SYSTEM
             with st.spinner("🤖 Analyzing your question..."):
                 response, intent = st.session_state.chatbot.generate_response(prompt)
             
