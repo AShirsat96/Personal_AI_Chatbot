@@ -321,42 +321,73 @@ class SmartHybridChatbot:
         }
     
     def analyze_intent(self, user_input: str) -> str:
-        """Analyze user intent from input with enhanced natural language understanding - FULL VERSION"""
-        input_lower = user_input.lower()
+        """Analyze user intent from input with enhanced natural language understanding - COMPREHENSIVE VERSION"""
+        input_lower = user_input.lower().strip()
+        
+        # Handle empty or very short inputs
+        if len(input_lower) < 2:
+            return "general"
         
         # First check for specific question patterns - be more specific about greetings
-        if any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3 and not any(word in input_lower for word in ["skill", "project", "hire", "experience"]):
+        if any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3 and not any(word in input_lower for word in ["skill", "project", "hire", "experience", "hobby", "personal"]):
             return "greeting"
-        elif any(pattern in input_lower for pattern in ["thank", "thanks", "appreciate", "grateful"]) and not any(word in input_lower for word in ["skill", "project", "hire", "experience"]):
+        elif any(pattern in input_lower for pattern in ["thank", "thanks", "appreciate", "grateful"]) and not any(word in input_lower for word in ["skill", "project", "hire", "experience", "hobby", "personal"]):
             return "thanks"
-        elif any(pattern in input_lower for pattern in ["bye", "goodbye", "see you", "farewell", "take care"]):
+        elif any(pattern in input_lower for pattern in ["bye", "goodbye", "see you", "farewell", "take care", "exit", "quit"]):
             return "goodbye"
         
-        # Enhanced question patterns - check these BEFORE greeting patterns
-        if any(word in input_lower for word in ["hire", "why", "recommend", "choose", "recruit", "employ", "candidate", "should we", "good choice", "worth it", "benefit"]):
-            return "hiring"
-        elif any(word in input_lower for word in ["skill", "technical", "programming", "tech", "abilities", "competencies", "expertise", "tools", "technologies", "what can he do", "good at", "proficient"]):
-            return "skills"
-        elif any(word in input_lower for word in ["education", "school", "degree", "gpa", "university", "academic", "study", "college", "educational background", "qualifications"]):
-            return "education"
-        elif any(word in input_lower for word in ["experience", "work", "job", "employment", "career", "professional", "background", "history", "worked at", "previous"]):
-            return "experience"
-        elif any(word in input_lower for word in ["project", "research", "built", "created", "developed", "worked on", "achievement", "accomplishment", "portfolio", "examples"]):
-            return "projects"
-        elif any(word in input_lower for word in ["hobby", "hobbies", "interest", "interests", "personal", "outside work", "free time", "activities", "personality"]):
+        # Enhanced question patterns - check PERSONAL/HOBBIES FIRST before other patterns
+        elif any(word in input_lower for word in ["hobby", "hobbies", "interest", "interests", "personal", "outside work", "free time", "activities", "personality", "rowing", "sports", "extracurricular", "club", "clubs", "passion", "enjoys", "recreation", "leisure"]):
             return "personal"
-        elif any(word in input_lower for word in ["contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "how to reach"]):
+        
+        # Hiring and recommendation questions - expanded keywords
+        elif any(word in input_lower for word in ["hire", "hiring", "recruit", "recruiting", "employment", "why choose", "why select", "recommend", "recommendation", "choose", "employ", "candidate", "should we", "should i", "good choice", "worth it", "benefit", "advantages", "why him", "best fit", "suitable", "right person", "good candidate", "hire him", "employ him"]):
+            return "hiring"
+        
+        # Skills and technical abilities - expanded
+        elif any(word in input_lower for word in ["skill", "skills", "technical", "programming", "tech", "abilities", "competencies", "expertise", "tools", "technologies", "what can he do", "good at", "proficient", "capabilities", "knowledge", "knows", "familiar with", "experienced in", "coding", "development", "software", "languages", "frameworks", "platforms"]):
+            return "skills"
+        
+        # Education and academic background - expanded
+        elif any(word in input_lower for word in ["education", "educational", "school", "degree", "degrees", "gpa", "university", "academic", "academics", "study", "studied", "college", "qualification", "qualifications", "background", "learning", "courses", "curriculum", "major", "minor", "thesis", "research", "graduate", "undergraduate", "masters", "bachelor"]):
+            return "education"
+        
+        # Work experience and career - expanded
+        elif any(word in input_lower for word in ["experience", "work", "job", "jobs", "employment", "career", "professional", "background", "history", "worked at", "previous", "past", "role", "roles", "position", "positions", "employer", "company", "companies", "internship", "internships"]):
+            return "experience"
+        
+        # Projects and achievements - expanded
+        elif any(word in input_lower for word in ["project", "projects", "research", "built", "created", "developed", "worked on", "achievement", "achievements", "accomplishment", "accomplishments", "portfolio", "examples", "work samples", "case study", "success", "results", "outcomes", "impact", "contribution", "contributions"]):
+            return "projects"
+        
+        # Contact and reaching out - expanded
+        elif any(word in input_lower for word in ["contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "how to reach", "communication", "contact info", "contact information", "reach out", "get hold", "find him", "connect with"]):
             return "contact"
-        elif any(word in input_lower for word in ["available", "start", "when", "timeline", "notice", "free", "availability", "ready to work"]):
+        
+        # Availability and timing - expanded
+        elif any(word in input_lower for word in ["available", "availability", "start", "starting", "when", "timeline", "notice", "free", "ready to work", "ready", "can start", "join", "begin", "commence", "timing", "schedule"]):
             return "availability"
-        elif any(word in input_lower for word in ["salary", "compensation", "pay", "money", "cost", "rate", "price", "how much", "budget"]):
+        
+        # Salary and compensation - expanded
+        elif any(word in input_lower for word in ["salary", "compensation", "pay", "payment", "money", "cost", "rate", "price", "how much", "budget", "wage", "income", "package", "benefits", "remuneration", "fee", "charge"]):
             return "salary"
-        elif any(word in input_lower for word in ["location", "where", "based", "remote", "relocate", "move", "lives", "located"]):
+        
+        # Location and work arrangement - expanded
+        elif any(word in input_lower for word in ["location", "where", "based", "remote", "relocate", "move", "lives", "located", "office", "onsite", "hybrid", "work from home", "place", "city", "country", "address", "geography", "willing to relocate"]):
             return "location"
-        elif any(word in input_lower for word in ["culture", "team", "environment", "fit", "values", "work style", "team player", "collaborative"]):
+        
+        # Company culture and fit - expanded
+        elif any(word in input_lower for word in ["culture", "team", "environment", "fit", "values", "work style", "team player", "collaborative", "personality", "attitude", "work ethic", "cultural fit", "team fit", "working style", "approach"]):
             return "company_culture"
-        elif any(word in input_lower for word in ["future", "goals", "plans", "career path", "ambition", "vision", "aspirations", "long term", "growth"]):
+        
+        # Future goals and career plans - expanded
+        elif any(word in input_lower for word in ["future", "goals", "plans", "career path", "ambition", "ambitions", "vision", "aspirations", "long term", "growth", "objectives", "aims", "direction", "next steps", "where see himself", "5 years", "10 years"]):
             return "future"
+        
+        # Catch common question words that might not fit other categories
+        elif any(word in input_lower for word in ["who is", "what is", "tell me about", "describe", "explain", "information", "details", "about him", "about aniket", "overview", "summary", "profile"]):
+            return "general"
+        
         else:
             return "general"
     
@@ -574,15 +605,15 @@ Long-term, he is interested in leading strategic data science initiatives and po
 His motivation centers on bridging the gap between cutting-edge technical work and practical business impact. This combination of academic rigor with real-world results suggests he will continue advancing boundaries while consistently delivering value."""
     
     def get_general_response(self, is_casual: bool = False) -> str:
-        return f"""Allow me to provide an overview of Aniket Shirsat. He is currently pursuing his {self.aniket_data['personal_info']['current_status'].lower()} with a perfect {self.aniket_data['education']['current']['gpa']} GPA while serving as a {self.aniket_data['personal_info']['current_role'].lower()}.
+        return f"""Aniket Shirsat is currently pursuing his {self.aniket_data['personal_info']['current_status'].lower()} with a perfect {self.aniket_data['education']['current']['gpa']} GPA while serving as a {self.aniket_data['personal_info']['current_role'].lower()}.
 
 His distinguishing characteristic is the measurable business impact he has already generated. His accomplishments include achieving {self.aniket_data['achievements'][1]}, delivering {self.aniket_data['achievements'][2]}, and maintaining {self.aniket_data['achievements'][4]}.
 
 From a technical perspective, he is proficient in {', '.join(self.aniket_data['technical_skills']['programming'])}, experienced with {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, and has hands-on experience with machine learning, computer vision, and natural language processing.
 
-Currently, he is {self.aniket_data['career_goals'].lower()} where he can apply his combination of technical expertise and business understanding.
+He brings leadership experience as {self.aniket_data['leadership'][0]} and maintains active involvement with {self.aniket_data['leadership'][1]}. This combination of academic excellence, technical expertise, and leadership capabilities makes him well-suited for data science and machine learning roles.
 
-What specific aspect would you like me to address? I can discuss why organizations should consider him for employment, provide details about his technical capabilities, describe his specific projects, or elaborate on his educational background."""
+Currently, he is {self.aniket_data['career_goals'].lower()} where he can apply his combination of technical expertise and business understanding to drive meaningful organizational impact."""
 
 def main():
     """Full-featured chatbot with NO suggested questions interface"""
