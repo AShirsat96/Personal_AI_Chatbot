@@ -10,7 +10,7 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 
-# Updated OpenAI import
+# Updated OpenAI import (v1.0+ compatible)
 from openai import OpenAI
 
 # OpenAI client setup
@@ -182,6 +182,7 @@ class GitHubGistDatabase:
             "avatar_data": None,
             "app_settings": {},
             "messages_for_aniket": [],
+            "conversation_threads": [],
             "last_updated": datetime.now().isoformat()
         }
     
@@ -494,7 +495,7 @@ User question: "{user_question}"
 
 Provide a natural, conversational response (2-3 sentences max) that directly answers their question. Sound like a helpful human assistant recommending Aniket."""
 
-            # Call OpenAI API with new format
+            # Call OpenAI API with updated format
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -894,20 +895,21 @@ His key highlights include over $1 million in business impact from ML projects, 
 He's currently seeking data science and machine learning opportunities where he can apply his combination of technical expertise and business understanding."""
 
 def main():
-    """Simple chatbot with required name and optional email"""
+    """Enhanced chatbot with button-based email collection"""
     st.set_page_config(
         page_title="Chat with Aniket's AI Assistant",
         page_icon="💬",
         layout="centered"
     )
     
-    # Clean CSS
+    # Enhanced CSS with improved mobile responsiveness
     st.markdown("""
     <style>
         .stApp {
             margin: 0 !important;
             padding: 0 !important;
-            background: #f5f7fa;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
         }
         
         .stApp > header {
@@ -916,7 +918,7 @@ def main():
         }
         
         .block-container {
-            padding: 0 !important;
+            padding: 10px !important;
             margin: 0 !important;
             max-width: 100% !important;
         }
@@ -928,10 +930,12 @@ def main():
         .chat-container {
             background: white;
             border-radius: 20px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            max-width: 420px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            max-width: 450px;
+            width: 100%;
             margin: 0 auto;
             border: 1px solid #e1e8ed;
+            overflow: hidden;
         }
         
         .chat-header {
@@ -948,6 +952,7 @@ def main():
             height: 50px;
             border-radius: 50%;
             border: 3px solid rgba(255,255,255,0.3);
+            object-fit: cover;
         }
         
         .chat-title h3 {
@@ -956,10 +961,17 @@ def main():
             font-weight: 600;
         }
         
+        .chat-subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 2px;
+        }
+        
         .message-container {
             padding: 15px 20px;
             max-height: 450px;
             overflow-y: auto;
+            background: #fafbfc;
         }
         
         .assistant-message {
@@ -970,12 +982,14 @@ def main():
         }
         
         .message-bubble {
-            background: #f1f3f5;
+            background: white;
             padding: 12px 16px;
             border-radius: 18px;
             max-width: 320px;
             font-size: 14px;
             line-height: 1.4;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid #e1e8ed;
         }
         
         .user-message {
@@ -992,6 +1006,88 @@ def main():
             max-width: 320px;
             font-size: 14px;
             line-height: 1.4;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .email-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        .email-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+            text-align: center;
+        }
+        
+        .email-button.yes {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+        
+        .email-button.yes:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76,175,80,0.3);
+        }
+        
+        .email-button.no {
+            background: linear-gradient(135deg, #f44336 0%, #da190b 100%);
+            color: white;
+        }
+        
+        .email-button.no:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244,67,54,0.3);
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .chat-container {
+                max-width: 95%;
+                margin: 5px auto;
+                border-radius: 15px;
+            }
+            
+            .chat-header {
+                padding: 15px;
+            }
+            
+            .chat-avatar {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .chat-title h3 {
+                font-size: 16px;
+            }
+            
+            .message-container {
+                max-height: 400px;
+                padding: 10px 15px;
+            }
+            
+            .message-bubble, .user-bubble {
+                max-width: 280px;
+                font-size: 13px;
+            }
+            
+            .email-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .email-button {
+                width: 200px;
+            }
         }
     </style>
     """, unsafe_allow_html=True)
@@ -1001,13 +1097,15 @@ def main():
         st.session_state.chatbot = SmartHybridChatbot()
     
     if "session_id" not in st.session_state:
-        st.session_state.session_id = f"simple_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        st.session_state.session_id = f"enhanced_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
-    # Simple initialization - name required, email optional
+    # Enhanced initialization with button-based email collection
     if "asking_for_name" not in st.session_state:
         st.session_state.asking_for_name = False
     if "asking_for_name_confirmation" not in st.session_state:
         st.session_state.asking_for_name_confirmation = False
+    if "showing_email_buttons" not in st.session_state:
+        st.session_state.showing_email_buttons = False
     if "asking_for_email" not in st.session_state:
         st.session_state.asking_for_email = False
     if "asking_for_message" not in st.session_state:
@@ -1020,6 +1118,8 @@ def main():
         st.session_state.user_email = ""
     if "user_display_name" not in st.session_state:
         st.session_state.user_display_name = ""
+    if "email_choice_made" not in st.session_state:
+        st.session_state.email_choice_made = False
     
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -1037,7 +1137,7 @@ def main():
     # Chat UI
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    # Header
+    # Enhanced Header
     shared_avatar = get_shared_avatar()
     avatar_src = shared_avatar if shared_avatar else "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTIgMTJDMTQuNzYxNCAxMiAxNyA5Ljc2MTQyIDE3IDdDMTcgNC4yMzg1OCAxNC43NjE0IDIgMTIgMkM5LjIzODU4IDIgNyA0LjIzODU4IDcgN0M3IDkuNzYxNDIgOS4yMzg1OCAxMiAxMiAxMlpNMTIgMTRDOC42ODYyOSAxNCA2IDE2LjIzODYgNiAxOUg2QzYgMjEuNzYxNCA4LjIzODU4IDI0IDExIDI0SDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
     
@@ -1046,6 +1146,7 @@ def main():
         <img src="{avatar_src}" class="chat-avatar" alt="Avatar">
         <div class="chat-title">
             <h3>Aniket's AI Assistant</h3>
+            <div class="chat-subtitle">Professional Background & Career Info</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1070,6 +1171,45 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     
+    # **NEW: Button-based email collection**
+    if st.session_state.showing_email_buttons and not st.session_state.email_choice_made:
+        st.markdown("""
+        <div class="email-buttons">
+            <div style="width: 100%; text-align: center; margin-bottom: 10px; font-weight: 600; color: #333;">
+                Would you like to share your email with Aniket?
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("✅ Yes, I'll share", key="email_yes", use_container_width=True):
+                st.session_state.email_choice_made = True
+                st.session_state.showing_email_buttons = False
+                st.session_state.asking_for_email = True
+                
+                # Add user choice to messages
+                st.session_state.messages.append({"role": "user", "content": "✅ Yes, I'll share my email"})
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": "Perfect! Please enter your email address below:"
+                })
+                st.rerun()
+        
+        with col2:
+            if st.button("❌ No, skip", key="email_no", use_container_width=True):
+                st.session_state.email_choice_made = True
+                st.session_state.showing_email_buttons = False
+                
+                # Add user choice to messages
+                st.session_state.messages.append({"role": "user", "content": "❌ No, skip email"})
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": f"No problem, {st.session_state.user_display_name}! I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                })
+                st.rerun()
+    
     st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
     st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
     
@@ -1078,8 +1218,13 @@ def main():
         placeholder = "Enter your name..."
     elif st.session_state.asking_for_name_confirmation:
         placeholder = "Please let me know how you'd like to be addressed..."
+    elif st.session_state.showing_email_buttons:
+        placeholder = "Please use the buttons above to choose..."
+        # Disable input when showing buttons
+        st.chat_input(placeholder, disabled=True)
+        return
     elif st.session_state.asking_for_email:
-        placeholder = "Enter your email address (or type 'skip' to continue without email)..."
+        placeholder = "Enter your email address..."
     elif st.session_state.asking_for_message:
         placeholder = "Type your message for Aniket (or 'cancel' to skip)..."
     else:
@@ -1121,7 +1266,11 @@ def main():
                 # Use the first name as suggested
                 name_parts = st.session_state.user_name.split()
                 st.session_state.user_display_name = name_parts[0]
-                response = f"Perfect, {st.session_state.user_display_name}! Could you please share your email address? (You can also type 'skip' if you prefer not to share it)"
+                st.session_state.asking_for_name_confirmation = False
+                st.session_state.showing_email_buttons = True
+                
+                response = f"Perfect, {st.session_state.user_display_name}!"
+                st.session_state.messages.append({"role": "assistant", "content": response})
             
             elif any(word in confirmation_lower for word in ["no", "nope", "actually", "call me", "prefer"]):
                 # They want to be called something different
@@ -1156,7 +1305,11 @@ def main():
                     return
                 
                 st.session_state.user_display_name = corrected_name
-                response = f"Perfect, {st.session_state.user_display_name}! Could you please share your email address? (You can also type 'skip' if you prefer not to share it)"
+                st.session_state.asking_for_name_confirmation = False
+                st.session_state.showing_email_buttons = True
+                
+                response = f"Perfect, {st.session_state.user_display_name}!"
+                st.session_state.messages.append({"role": "assistant", "content": response})
             
             else:
                 # They probably just said their preferred name directly
@@ -1167,66 +1320,40 @@ def main():
                     # Use their response as-is (cleaned up)
                     st.session_state.user_display_name = prompt.strip().title()
                 
-                response = f"Perfect, {st.session_state.user_display_name}! Could you please share your email address? (You can also type 'skip' if you prefer not to share it)"
-            
-            st.session_state.asking_for_name_confirmation = False
-            st.session_state.asking_for_email = True
-            st.session_state.messages.append({"role": "assistant", "content": response})
+                st.session_state.asking_for_name_confirmation = False
+                st.session_state.showing_email_buttons = True
+                
+                response = f"Perfect, {st.session_state.user_display_name}!"
+                st.session_state.messages.append({"role": "assistant", "content": response})
         
         elif st.session_state.asking_for_email:
-            # Handle email collection with skip option - SIMPLIFIED
-            prompt_lower = prompt.lower().strip()
+            # Handle email input
+            extracted_email = extract_email_from_input(prompt)
             
-            # Expanded skip phrases and rejection patterns
-            skip_phrases = [
-                'skip', 'no', 'no thanks', 'not now', 'maybe later', 'pass', 
-                'dont want', "don't want", 'not interested', 'no email', 
-                'i dont want', "i don't want", 'nope', 'na', 'nah',
-                'call me', 'just call me', 'prefer not to', 'rather not',
-                'not sharing', 'dont share', "don't share", 'private',
-                'not giving', 'wont give', "won't give", 'decline'
-            ]
-            
-            # Check if user is trying to skip/decline email
-            is_skip_request = any(phrase in prompt_lower for phrase in skip_phrases)
-            
-            # Also check if it's clearly not an email (no @ symbol and contains common words)
-            has_at_symbol = '@' in prompt
-            contains_common_words = any(word in prompt_lower for word in ['call', 'me', 'want', 'dont', 'not', 'no', 'prefer'])
-            
-            if is_skip_request or (not has_at_symbol and contains_common_words):
+            if extracted_email and is_valid_email(extracted_email):
+                # Valid email - save it
+                st.session_state.user_email = extracted_email
                 st.session_state.asking_for_email = False
-                response = f"No problem, {st.session_state.user_display_name}! I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                
+                save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
+                
+                response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            elif is_valid_email(prompt.strip()):
+                # Valid email format - save it
+                st.session_state.user_email = prompt.strip()
+                st.session_state.asking_for_email = False
+                
+                save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
+                
+                response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            
             else:
-                # Try to extract and validate email
-                extracted_email = extract_email_from_input(prompt)
-                
-                if extracted_email and is_valid_email(extracted_email):
-                    # Valid email - save it
-                    st.session_state.user_email = extracted_email
-                    st.session_state.asking_for_email = False
-                    
-                    save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
-                    
-                    response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                elif is_valid_email(prompt.strip()):
-                    # Valid email format - save it
-                    st.session_state.user_email = prompt.strip()
-                    st.session_state.asking_for_email = False
-                    
-                    save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
-                    
-                    response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                else:
-                    # Invalid email - just proceed without it
-                    st.session_state.asking_for_email = False
-                    response = f"Thanks, {st.session_state.user_display_name}! I'm ready to answer questions about Aniket's professional background. What would you like to know?"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                # Invalid email - ask again
+                response = "That doesn't look like a valid email address. Could you please try again? (e.g., john@company.com)"
+                st.session_state.messages.append({"role": "assistant", "content": response})
         
         elif st.session_state.asking_for_message:
             # Handle message collection for Aniket
@@ -1337,7 +1464,7 @@ What message would you like me to pass along to him? Please share what you'd lik
         
         st.rerun()
 
-# Reset check function
+# Enhanced helper functions
 def check_and_reset_if_needed():
     """Check if we need to reset the conversation"""
     if st.session_state.get('reset_on_next_message', False):
@@ -1346,7 +1473,6 @@ def check_and_reset_if_needed():
         return True
     return False
 
-# Conversation thread tracking functions
 def log_conversation_with_thread(session_id: str, user_message: str, bot_response: str, intent: str, user_name: str = "", user_email: str = ""):
     """Enhanced logging that maintains conversation threads"""
     
@@ -1408,7 +1534,7 @@ def reset_conversation_session():
     st.session_state.user_display_name = user_display_name
     
     # Create new session ID
-    st.session_state.session_id = f"simple_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    st.session_state.session_id = f"enhanced_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     # Reset conversation state
     st.session_state.awaiting_closure_response = False
@@ -1416,6 +1542,8 @@ def reset_conversation_session():
     st.session_state.asking_for_email = False
     st.session_state.asking_for_message = False
     st.session_state.message_contact_info = ""
+    st.session_state.showing_email_buttons = False
+    st.session_state.email_choice_made = False
     
     # Set fresh greeting message
     greeting_name = f" {user_display_name}" if user_display_name else ""
