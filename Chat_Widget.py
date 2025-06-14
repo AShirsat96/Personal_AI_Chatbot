@@ -10,12 +10,21 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 
+# Add OpenAI import
+import openai
+
+# Set OpenAI API key
+openai.api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+
 def extract_name_from_input(user_input: str) -> Optional[str]:
     """Extract name from natural language input - SUPPORTS FULL NAMES"""
     input_lower = user_input.lower().strip()
     
     # Remove common greetings and punctuation
     input_clean = re.sub(r'[^\w\s]', '', input_lower)
+    
+    # Names to exclude (Aniket's name variations)
+    excluded_names = {'aniket', 'aniket shirsat'}
     
     # Common patterns for name introduction - UPDATED TO CAPTURE FULL NAMES
     name_patterns = [
@@ -30,6 +39,7 @@ def extract_name_from_input(user_input: str) -> Optional[str]:
         match = re.search(pattern, input_clean)
         if match:
             potential_name = match.group(1).strip()
+            
             # Filter out common non-name words
             non_names = {
                 'hello', 'hi', 'hey', 'good', 'morning', 'afternoon', 'evening',
@@ -40,11 +50,15 @@ def extract_name_from_input(user_input: str) -> Optional[str]:
             
             # Check if it's a valid name (not just non-name words)
             name_words = potential_name.split()
-            valid_name_words = [word for word in name_words if word not in non_names and len(word) >= 2]
+            valid_name_words = [word for word in name_words if word not in non_names and len(word) >= 2 and word.lower() not in excluded_names]
             
             if valid_name_words:
                 # Capitalize each word properly
-                return ' '.join(word.capitalize() for word in valid_name_words)
+                extracted_name = ' '.join(word.capitalize() for word in valid_name_words)
+                # Final check: don't return if it matches excluded names
+                if extracted_name.lower() in excluded_names:
+                    continue
+                return extracted_name
     
     # If no pattern matches, check if it's just a name without intro words
     words = input_clean.split()
@@ -56,10 +70,14 @@ def extract_name_from_input(user_input: str) -> Optional[str]:
     }
     
     # Filter out non-name words and keep valid name parts
-    valid_words = [word for word in words if word not in non_names and len(word) >= 2]
+    valid_words = [word for word in words if word not in non_names and len(word) >= 2 and word.lower() not in excluded_names]
     
     if valid_words:
-        return ' '.join(word.capitalize() for word in valid_words)
+        extracted_name = ' '.join(word.capitalize() for word in valid_words)
+        # Final check: don't return if it matches excluded names
+        if extracted_name.lower() in excluded_names:
+            return None
+        return extracted_name
     
     return None
 
@@ -255,7 +273,7 @@ def get_shared_avatar() -> Optional[str]:
     return db.get_avatar()
 
 class SmartHybridChatbot:
-    """Intelligent hybrid chatbot with full response capabilities"""
+    """Intelligent hybrid chatbot with OpenAI integration"""
     
     def __init__(self):
         # Comprehensive knowledge base about Aniket
@@ -313,8 +331,35 @@ class SmartHybridChatbot:
                 "Member of Indiana University Jaguars Rowing Club"
             ],
             "career_goals": "Actively seeking full-time opportunities in data science and machine learning roles",
-            "unique_value": "Combines academic excellence with proven ability to deliver quantifiable business results"
+            "unique_value": "Combines academic excellence with proven ability to deliver quantifiable business results",
+            "contact": {
+                "email": "ashirsat@iu.edu",
+                "phone": "+1 463 279 6071",
+                "linkedin": "https://www.linkedin.com/in/aniketshirsatsg/",
+                "github": "https://github.com/AShirsat96"
+            }
         }
+        
+        # System prompt for OpenAI
+        self.system_prompt = """You are Aniket Shirsat's AI assistant. Your role is to help people learn about Aniket's professional background and qualifications in a natural, conversational way.
+
+Key guidelines:
+- Keep responses concise and natural (2-3 sentences max)
+- Sound like a helpful human assistant, not an AI
+- Focus on the specific question asked
+- Always base responses on the provided data about Aniket
+- Be professional but conversational
+- If asked about topics not covered in Aniket's data, politely redirect to his areas of expertise
+
+You should help with questions about:
+- His skills and technical abilities
+- Educational background  
+- Work experience and projects
+- Why someone should hire him
+- His availability and contact information
+- Personal interests and leadership experience
+
+Always use the factual information provided about Aniket to answer questions accurately."""
         
         # Conversation patterns for natural interaction
         self.conversation_patterns = {
@@ -325,7 +370,7 @@ class SmartHybridChatbot:
             "conversation_enders": ["that's all", "that covers it", "no more questions", "nothing else", "all set", "that's everything"]
         }
         
-        # Question intent patterns - RESTORED FULL VERSION
+        # Question intent patterns
         self.intent_patterns = {
             "hiring": ["hire", "why", "recommend", "choose", "recruit", "employ", "candidate", "fit", "right person"],
             "skills": ["skill", "technical", "programming", "tech", "abilities", "competencies", "expertise", "tools", "technologies"],
@@ -340,6 +385,111 @@ class SmartHybridChatbot:
             "company_culture": ["culture", "team", "environment", "fit", "values", "work style"],
             "future": ["future", "goals", "plans", "career path", "ambition", "vision"]
         }
+    
+    def get_openai_response(self, user_question: str, intent: str, context: Dict[str, bool]) -> str:
+        """Generate response using OpenAI API"""
+        try:
+            # Create context-specific prompt based on intent
+            if intent == "skills":
+                context_data = f"""Technical Skills: {', '.join(self.aniket_data['technical_skills']['programming'])}, {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, {', '.join(self.aniket_data['technical_skills']['ai_ml'])}
+Business Impact: His ML projects have delivered over $1 million in annual savings"""
+            
+            elif intent == "education":
+                context_data = f"""Current: {self.aniket_data['education']['current']['degree']} at {self.aniket_data['education']['current']['university']} (GPA: {self.aniket_data['education']['current']['gpa']})
+Previous: {self.aniket_data['education']['previous']['degree']} from {self.aniket_data['education']['previous']['university']}"""
+            
+            elif intent == "experience":
+                context_data = f"""Current Role: {self.aniket_data['experience']['current_role']}
+Key Projects: 
+1. {self.aniket_data['experience']['key_projects'][0]['name']} - {self.aniket_data['experience']['key_projects'][0]['result']}
+2. {self.aniket_data['experience']['key_projects'][1]['name']} - {self.aniket_data['experience']['key_projects'][1]['result']}
+Leadership: {', '.join(self.aniket_data['leadership'])}"""
+            
+            elif intent == "projects":
+                context_data = f"""Projects:
+1. Cultural Ambiguity Detection: {self.aniket_data['experience']['key_projects'][0]['result']} using ML and NLP
+2. Vessel Fuel Optimization: {self.aniket_data['experience']['key_projects'][1]['result']} with {self.aniket_data['experience']['key_projects'][1]['impact']}"""
+            
+            elif intent == "hiring":
+                context_data = f"""Why hire Aniket:
+- Perfect {self.aniket_data['education']['current']['gpa']} GPA while working as {self.aniket_data['experience']['current_role']}
+- Proven business impact: {self.aniket_data['experience']['key_projects'][1]['result']}
+- Technical skills: {', '.join(self.aniket_data['technical_skills']['programming'])}, {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}
+- Leadership: {self.aniket_data['leadership'][0]}"""
+            
+            elif intent == "contact":
+                context_data = f"""Contact Information:
+Email: {self.aniket_data['contact']['email']}
+Phone: {self.aniket_data['contact']['phone']}
+LinkedIn: {self.aniket_data['contact']['linkedin']}
+GitHub: {self.aniket_data['contact']['github']}"""
+            
+            elif intent == "personal":
+                context_data = f"""Personal/Leadership:
+- {self.aniket_data['leadership'][0]}
+- {self.aniket_data['leadership'][1]}
+- Interests: AI/ML applications, solving complex business challenges"""
+            
+            elif intent == "availability":
+                context_data = f"""Availability: {self.aniket_data['career_goals']}
+Currently completing Master's degree while working as Research Assistant
+Available for interviews immediately, flexible with start dates"""
+            
+            else:
+                # General context for other intents
+                context_data = f"""Aniket Shirsat Overview:
+- {self.aniket_data['personal_info']['current_status']} (GPA: {self.aniket_data['personal_info']['gpa']})
+- {self.aniket_data['personal_info']['current_role']}
+- Key achievement: {self.aniket_data['experience']['key_projects'][1]['result']}
+- Skills: {', '.join(self.aniket_data['technical_skills']['programming'])}, {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}"""
+            
+            # Create the prompt
+            prompt = f"""Based on this information about Aniket:
+
+{context_data}
+
+User question: "{user_question}"
+
+Provide a natural, conversational response (2-3 sentences max) that directly answers their question. Sound like a helpful human assistant recommending Aniket."""
+
+            # Call OpenAI API
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",  # or "gpt-4" if you have access
+                messages=[
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=150,
+                temperature=0.7
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            # Fallback to predefined responses if OpenAI fails
+            st.warning(f"OpenAI API error: {str(e)}")
+            return self.get_fallback_response(intent)
+    
+    def get_fallback_response(self, intent: str) -> str:
+        """Fallback responses when OpenAI API fails"""
+        fallback_responses = {
+            "skills": "Aniket is proficient in Python, R, and SQL, with experience in AWS, Azure, and Google Cloud. His ML projects have delivered over $1 million in annual savings.",
+            "education": "Aniket has a Master's in Applied Data Science from Indiana University Indianapolis with a 4.0 GPA, plus a Master's in Management from Singapore Management University.",
+            "experience": "Aniket works as a Research Assistant at Indiana University. His vessel optimization project saved over $1 million annually, and his cultural detection models achieve 90% accuracy.",
+            "projects": "Aniket built cultural ambiguity detection models with 90% accuracy and vessel optimization algorithms that save $1M+ annually across 50+ vessels.",
+            "hiring": "I'd recommend Aniket for his perfect 4.0 GPA, proven $1M+ business impact from ML projects, and strong technical skills in Python, R, SQL, and cloud platforms.",
+            "contact": f"You can reach Aniket at {self.aniket_data['contact']['email']}, call {self.aniket_data['contact']['phone']}, or connect on LinkedIn at {self.aniket_data['contact']['linkedin']}",
+            "personal": "Aniket leads the Data Science Club and rows for Indiana University. The combination of leadership and athletic discipline shows he works well under pressure.",
+            "availability": "Aniket is available immediately for interviews and flexible with start dates. He's actively seeking data science opportunities."
+        }
+        
+        return fallback_responses.get(intent, "I'd be happy to tell you more about Aniket's background. What specific aspect interests you?")
+    
+    def use_openai_for_response(self) -> bool:
+        """Check if OpenAI API should be used"""
+        # Check if API key is available
+        api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+        return bool(api_key)
     
     def should_offer_conversation_closure(self, user_input: str, message_count: int) -> bool:
         """Determine if we should offer to end the conversation"""
@@ -391,9 +541,9 @@ class SmartHybridChatbot:
     
     def get_conversation_closure_offer(self) -> str:
         """Offer to close the conversation naturally"""
-        return """Is there anything else you'd like to know about Aniket's background, skills, or experience? 
+        return """Is there anything else you'd like to know about Aniket? 
 
-Or if you have all the information you need, I can end our conversation here and you can always start fresh if you have more questions later."""
+Or if you have all the information you need, I can end our conversation here."""
     
     def get_conversation_ending_response(self, user_name: str = "") -> str:
         """Provide a natural conversation ending"""
@@ -401,19 +551,18 @@ Or if you have all the information you need, I can end our conversation here and
         
         return f"""Perfect! Thank you{name_part} for your interest in Aniket Shirsat. 
 
-I hope the information was helpful in understanding his qualifications and potential value to your organization. If you'd like to connect with him directly, his contact information is:
+To connect with him directly:
+📧 Email: ashirsat@iu.edu
+🔗 LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
 
-Email: ashirsat@iu.edu
-LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
-
-Feel free to start a new conversation anytime if you have more questions. Have a great day! 👋"""
+Feel free to start a new conversation anytime. Have a great day! 👋"""
     
     def get_conversation_continuation_response(self) -> str:
         """Response when user wants to continue"""
-        return """Great! What else would you like to know about Aniket? I can provide more details about his projects, skills, experience, or any other aspects of his background."""
+        return """Great! What else would you like to know about Aniket?"""
     
     def analyze_intent(self, user_input: str) -> str:
-        """Analyze user intent from input with enhanced natural language understanding - COMPREHENSIVE VERSION"""
+        """Analyze user intent from input with enhanced natural language understanding"""
         input_lower = user_input.lower().strip()
         
         # Handle empty or very short inputs
@@ -510,7 +659,7 @@ Feel free to start a new conversation anytime if you have more questions. Have a
         }
     
     def generate_response(self, user_input: str) -> tuple[str, str]:
-        """Generate intelligent response based on intent analysis - FULL VERSION"""
+        """Generate intelligent response based on intent analysis"""
         intent = self.analyze_intent(user_input)
         context = self.extract_context(user_input)
         
@@ -562,216 +711,127 @@ Feel free to start a new conversation anytime if you have more questions. Have a
         
         # Check if we should offer conversation closure after the response
         message_count = len(st.session_state.messages) // 2  # Approximate exchange count
-        if self.should_offer_conversation_closure(user_input, message_count) and not st.session_state.get('awaiting_closure_response', False):
+        if (self.should_offer_conversation_closure(user_input, message_count) and 
+            not st.session_state.get('awaiting_closure_response', False)):
             # Add the closure offer to the response
             response += "\n\n" + self.get_conversation_closure_offer()
             st.session_state.awaiting_closure_response = True
             
         return response, intent
     
-    # RESTORED ALL DETAILED RESPONSE METHODS
-    
+    # SHORT AND NATURAL RESPONSE METHODS
     def get_greeting_response(self, is_casual: bool = False) -> str:
-        return """Hello! I'm Aniket's AI assistant, here to help you learn about his professional background and qualifications.
+        return """Hello! I'm Aniket's AI assistant. 
 
-Aniket is currently pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant.
+Aniket is pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a 4.0 GPA while working as a Research Assistant.
 
-What would you like to know about him? I can share details about his skills, experience, projects, or why he'd be an excellent addition to your team."""
+What would you like to know about him?"""
     
     def get_thanks_response(self, is_casual: bool = False) -> str:
-        return """You're welcome! I'm glad I could help you learn more about Aniket.
+        return """You're welcome! Happy to help you learn more about Aniket.
 
-If you have any other questions about his background, skills, projects, or qualifications, please feel free to ask. Is there anything specific about his experience or technical expertise you'd like to explore further?"""
+Is there anything else you'd like to know about his background or skills?"""
     
     def get_goodbye_response(self, is_casual: bool = False) -> str:
-        return """Thank you for your interest in Aniket Shirsat.
+        return """Thank you for your interest in Aniket!
 
-I hope the information has been helpful in understanding his qualifications and potential value to your organization. If you'd like to connect with Aniket directly, please reach out through his professional channels. He's actively pursuing new opportunities and would be pleased to discuss how his skills and experience align with your needs.
+Feel free to reach out to him directly at ashirsat@iu.edu or connect on LinkedIn at https://www.linkedin.com/in/aniketshirsatsg/
 
 Have a great day!"""
     
     def get_hiring_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        base_response = f"""I would strongly recommend considering Aniket for your organization. He demonstrates an exceptional combination of academic excellence and measurable business impact.
+        return """I'd strongly recommend Aniket. He maintains a perfect 4.0 GPA while working as a Research Assistant, which shows he can handle multiple demanding responsibilities.
 
-He maintains a perfect {self.aniket_data['education']['current']['gpa']} GPA in his {self.aniket_data['education']['current']['degree']} while serving as a {self.aniket_data['personal_info']['current_role']}. This demonstrates his ability to manage multiple demanding responsibilities effectively.
+Most importantly, his ML projects have delivered real business impact - over $1 million in annual savings from vessel optimization work. He's proficient in Python, R, SQL, and cloud platforms like AWS and Azure.
 
-His business impact is particularly noteworthy. His vessel fuel optimization project delivered {self.aniket_data['experience']['key_projects'][1]['result']} with a {self.aniket_data['experience']['key_projects'][1]['impact']}. Additionally, his cultural ambiguity detection work achieved {self.aniket_data['experience']['key_projects'][0]['result']}.
-
-From a technical perspective, he is proficient in {', '.join(self.aniket_data['technical_skills']['programming'])}, experienced with {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, and has hands-on expertise in {', '.join(self.aniket_data['technical_skills']['ai_ml'])}.
-
-Furthermore, he brings leadership experience as {self.aniket_data['leadership'][0]} and maintains active involvement with {self.aniket_data['leadership'][1]}. This combination ensures you would be hiring someone capable of delivering results, leading teams, and applying academic rigor to practical business challenges."""
-
-        if context["wants_details"]:
-            base_response += f"""\n\nTo provide specific metrics, the cultural ambiguity detection models he developed are performing at {self.aniket_data['experience']['key_projects'][0]['result']}, which represents excellent performance for this type of natural language processing work. The vessel optimization system operates across 50+ vessels and consistently delivers the projected fuel savings."""
-
-        return base_response
+He also brings leadership experience as Head of the Data Science Club. It's rare to find someone who combines academic excellence with proven business results."""
     
     def get_skills_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        skills = self.aniket_data['technical_skills']
-        
-        response = f"""Aniket possesses a comprehensive technical foundation. He is proficient in {', '.join(skills['programming'])} for programming and development, which covers the essential requirements for data science applications.
+        return """Aniket is proficient in Python, R, and SQL for programming. He has experience with AWS, Azure, and Google Cloud Platform for cloud computing.
 
-In cloud computing, he has experience with {', '.join(skills['cloud_platforms'])}, enabling him to deploy and scale solutions effectively. His artificial intelligence and machine learning expertise encompasses {', '.join(skills['ai_ml'])}, and importantly, he has applied these technologies in real-world projects rather than purely academic contexts.
-
-What distinguishes him is his ability to translate technical capabilities into measurable business value. His vessel optimization project generated over one million dollars in annual savings, and his cultural ambiguity detection models achieve 90% accuracy in production environments."""
-
-        if context["wants_examples"]:
-            response += f"""\n\nFor example, he developed cultural ambiguity detection models using advanced natural language processing techniques and achieved 90% accuracy. The vessel fuel optimization system he created utilizes predictive modeling and currently operates across 50+ vessels. His experience encompasses the complete pipeline: data processing, model development, deployment, and monitoring."""
-
-        return response
+His AI and machine learning expertise includes computer vision, natural language processing, and advanced analytics. What sets him apart is that he applies these skills to create real business value - his optimization projects have saved over $1 million annually."""
     
     def get_education_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        edu = self.aniket_data['education']
-        
-        response = f"""Aniket's educational background is highly impressive. He is currently pursuing his {edu['current']['degree']} at {edu['current']['university']} while maintaining a perfect {edu['current']['gpa']} GPA and simultaneously serving as a {self.aniket_data['personal_info']['current_role']}.
+        return """Aniket is currently pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA. He also has a Master's in Management from Singapore Management University.
 
-His academic portfolio also includes a {edu['previous']['degree']} from {edu['previous']['university']}. This business foundation is evident in his approach to technical problems, where he focuses on creating solutions with clear business impact rather than purely theoretical applications.
-
-His ability to maintain perfect academic performance while conducting meaningful research demonstrates exceptional time management skills and his capacity to deliver high-quality work under demanding circumstances."""
-
-        if context["wants_details"]:
-            response += f"""\n\nHis current program emphasizes advanced machine learning, computer vision, natural language processing, and statistical analysis. The management background provides him with business strategy perspective that is uncommon among technical candidates, creating a valuable and rare combination of skills."""
-
-        return response
+This combination gives him both technical depth and business strategy perspective, which is pretty uncommon among data science candidates."""
     
     def get_experience_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        response = f"""Aniket currently serves as a {self.aniket_data['experience']['current_role']} while completing his Master's degree, which represents a significant professional achievement. The quality and impact of his work are particularly noteworthy.
+        return """Aniket currently works as a Research Assistant at Indiana University while completing his Master's degree. He's developed cultural ambiguity detection models that achieve 90% accuracy for analyzing advertisements.
 
-He developed a cultural ambiguity detection system that analyzes advertisements for cultural sensitivity. The models he created achieve {self.aniket_data['experience']['key_projects'][0]['result']}, which represents excellent performance for this type of natural language processing application.
-
-His vessel fuel optimization project demonstrates substantial business impact. He created predictive algorithms that generate {self.aniket_data['experience']['key_projects'][1]['result']} through a {self.aniket_data['experience']['key_projects'][1]['impact']} across 50+ vessels. This represents quantifiable value creation that directly impacts organizational performance.
-
-Additionally, he serves as {self.aniket_data['leadership'][0]} and maintains active participation in {self.aniket_data['leadership'][1]}. This demonstrates his commitment to balancing technical expertise, leadership responsibilities, and personal development."""
-
-        return response
+His most impressive project is vessel fuel optimization - he created predictive algorithms that generate over $1 million in annual savings and 5% fuel reduction across 50+ vessels. He's also Head of the Data Science Club and rows for the university team."""
     
     def get_projects_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        projects = self.aniket_data['experience']['key_projects']
-        
-        response = f"""Aniket has been developing projects that demonstrate both technical proficiency and business acumen.
+        return """Aniket has two standout projects. First, he built cultural ambiguity detection models using advanced NLP that achieve 90% accuracy for analyzing cultural sensitivity in advertisements.
 
-His cultural ambiguity detection project addresses the important challenge of analyzing advertisements for potential cultural sensitivities. The approach utilizes advanced natural language processing and machine learning techniques, achieving {projects[0]['result']}. This type of capability is increasingly valuable for organizations with global reach.
-
-The vessel fuel optimization project demonstrates clear business impact. He developed predictive modeling algorithms that optimize fuel consumption for maritime fleets. The system currently operates across 50+ vessels, delivering {projects[1]['impact']} and translating to {projects[1]['result']} in annual savings.
-
-Both projects represent practical solutions to real business challenges with measurable outcomes, reflecting the type of strategic thinking valuable in data science applications."""
-
-        if context["wants_details"]:
-            response += f"""\n\nFrom a technical implementation perspective, he has developed complete end-to-end pipelines encompassing data processing, custom machine learning algorithm development, production deployment, and ongoing monitoring. The cultural detection work required sophisticated natural language processing preprocessing, while the vessel optimization demanded real-time predictive capabilities."""
-
-        return response
+Second, his vessel fuel optimization project uses predictive algorithms to optimize maritime fleet fuel consumption. This system operates across 50+ vessels and delivers over $1 million in annual savings with 5% fuel reduction. Both show he can turn technical skills into real business impact."""
     
     def get_personal_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""Beyond his technical qualifications, Aniket demonstrates well-rounded personal development. He is a member of the {self.aniket_data['leadership'][1]}, which reflects his commitment to discipline and collaborative teamwork. Rowing requires significant coordination and dedication, qualities that translate effectively to professional environments.
+        return """Beyond his technical work, Aniket serves as Head of Outreach and Project Committee for the Data Science Club, showing his leadership abilities. He's also a member of the Indiana University Jaguars Rowing Club.
 
-He also serves as {self.aniket_data['leadership'][0]}, demonstrating his commitment to community building and mentoring others in the field. This indicates leadership potential and a collaborative approach to professional development.
-
-His interests reflect a genuine passion for learning and addressing complex challenges. He stays current with developments in artificial intelligence and machine learning, and demonstrates enthusiasm for applying academic concepts to practical business problems.
-
-The combination of athletic discipline, community leadership, and intellectual curiosity suggests an individual capable of performing under pressure, collaborating effectively, and maintaining continuous professional growth."""
+The combination of athletic discipline, community leadership, and technical expertise suggests someone who can perform under pressure and work well in teams."""
     
     def get_contact_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """You can reach Aniket at:
+        return """You can reach Aniket at ashirsat@iu.edu or call him at +1 463 279 6071. He's also on LinkedIn at https://www.linkedin.com/in/aniketshirsatsg/ and GitHub at https://github.com/AShirsat96.
 
-Email: ashirsat@iu.edu
-Phone: +1 463 279 6071
-LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
-GitHub: https://github.com/AShirsat96
-
-He's actively seeking opportunities and responds to professional inquiries within 1-2 business days."""
+He typically responds to professional inquiries within 1-2 business days."""
     
     def handle_message_for_contact(self, user_input: str) -> str:
         """Handle cases where users leave messages for Aniket to contact them"""
-        # Extract phone number if present
         phone_pattern = r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})'
         phone_match = re.search(phone_pattern, user_input)
         
         if phone_match:
             phone_number = phone_match.group(1)
-            return f"""Thank you for leaving your contact information. I've noted that you'd like Aniket to reach out to you at {phone_number}.
+            return f"""Got it! I'll let Aniket know to contact you at {phone_number}. He'll follow up within 1-2 business days.
 
-I'll make sure Aniket sees your message and he will follow up with you directly within 1-2 business days.
-
-In the meantime, you can also reach him directly at:
-Email: ashirsat@iu.edu
-LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
-
-Is there anything specific about his background or qualifications you'd like me to share while you're here?"""
+You can also reach him directly at ashirsat@iu.edu or on LinkedIn at https://www.linkedin.com/in/aniketshirsatsg/"""
         else:
-            return """Thank you for your message. I'll make sure Aniket sees this and he will follow up with you directly within 1-2 business days.
+            return """I'll make sure Aniket sees your message. He'll follow up within 1-2 business days.
 
-You can also reach him directly at:
-Email: ashirsat@iu.edu
-Phone: +1 463 279 6071
-LinkedIn: https://www.linkedin.com/in/aniketshirsatsg/
-
-Is there anything specific about his background or qualifications you'd like me to share while you're here?"""
+You can also reach him directly at ashirsat@iu.edu, call +1 463 279 6071, or connect on LinkedIn at https://www.linkedin.com/in/aniketshirsatsg/"""
     
     def get_availability_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""Aniket is currently completing his {self.aniket_data['personal_info']['current_status'].lower()} while serving as a {self.aniket_data['personal_info']['current_role'].lower()}, and he is {self.aniket_data['career_goals'].lower()}.
+        return """Aniket is available immediately for interviews and discussions. He's flexible with start dates and can accommodate your timeline.
 
-He is available for interviews and discussions immediately. Regarding start dates, he demonstrates flexibility and can accommodate arrangements that work for both parties. His research experience has involved managing multiple concurrent commitments, providing him with the skills to navigate transition periods effectively.
-
-It is important to note that he is actively pursuing his next career step rather than casually exploring opportunities. When he identifies the appropriate fit, he is prepared to make the necessary arrangements from a timing perspective.
-
-Given his active job search status, I would recommend initiating conversations promptly if there is potential interest."""
+Since he's actively job searching and ready to move quickly for the right opportunity, I'd recommend reaching out soon if you're interested."""
     
     def get_salary_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""Aniket approaches compensation discussions with a professional and reasonable perspective. He prioritizes finding the appropriate role where he can apply his skills and continue professional development over maximizing initial compensation.
+        return """Aniket takes a professional approach to compensation. He focuses on finding the right role and growth opportunities rather than just maximizing salary.
 
-However, he brings substantial value to any organization. His track record includes {self.aniket_data['experience']['key_projects'][1]['result']} in documented business impact, combined with advanced technical skills in high-demand areas.
-
-He is open to discussing competitive compensation packages appropriate for data science roles at his experience level. He values opportunities for professional development and is interested in comprehensive packages that extend beyond base salary considerations.
-
-Given his accomplishments in both academic excellence and practical business results, he represents both immediate capability and strong long-term potential. Most organizations would find the investment in his capabilities to be highly worthwhile."""
+Given his track record of delivering over $1 million in documented business impact, he's open to discussing competitive packages appropriate for his experience level."""
     
     def get_location_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""Aniket is currently based in Indianapolis due to his studies at Indiana University Indianapolis, but he demonstrates considerable flexibility regarding location arrangements.
+        return """Aniket is currently in Indianapolis for his studies at Indiana University, but he's very flexible with location. He's open to remote work, hybrid arrangements, or relocating for the right opportunity.
 
-He is open to remote work arrangements, hybrid configurations, or relocation for appropriate opportunities. His research experience has involved substantial remote collaboration, making him comfortable with distributed team environments.
-
-His international background from his time at {self.aniket_data['education']['previous']['university']} has prepared him for working with diverse teams and adapting to various work environments and cultural contexts.
-
-His primary focus is identifying a role where he can make meaningful contributions rather than being constrained by geographic limitations. He is willing to discuss arrangements that align with organizational needs and role requirements."""
+His international experience from Singapore Management University shows he adapts well to different environments."""
     
     def get_culture_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""Aniket appears well-suited for most data-driven organizations. His perfect {self.aniket_data['education']['current']['gpa']} GPA while conducting research demonstrates a high-performance mindset, while his leadership role as {self.aniket_data['leadership'][0]} shows his ability to work collaboratively.
+        return """Aniket would fit well in data-driven organizations that value both innovation and measurable results. His perfect 4.0 GPA while doing research shows high performance standards, and his leadership roles demonstrate he works well collaboratively.
 
-His involvement with {self.aniket_data['leadership'][1]} demonstrates his understanding of teamwork and discipline. His international background from {self.aniket_data['education']['previous']['university']} has prepared him for working effectively with diverse teams.
-
-He would likely thrive in a culture that values both innovation and measurable impact. He has demonstrated capability in working independently on complex problems while also mentoring others and building community. Organizations that encourage collaboration and continuous learning would be particularly appealing.
-
-Given his track record of delivering measurable business results while maintaining academic excellence, he would be most effective in environments that appreciate both technical depth and practical problem-solving capabilities."""
+His international background and diverse experiences make him adaptable to different team cultures."""
     
     def get_future_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return f"""Aniket has developed a clear vision for his career progression. In the short term, he seeks to transition from academic research into industry applications where he can apply his machine learning and artificial intelligence expertise to address genuine business challenges.
+        return """Short-term, Aniket wants to transition from academia into industry data science roles. Long-term, he's interested in technical leadership positions where he can bridge cutting-edge research with practical business solutions.
 
-Looking ahead, he aspires to become a technical leader in the data science field. Based on his track record with projects such as the vessel optimization that delivered {self.aniket_data['experience']['key_projects'][1]['result']}, he demonstrates the appropriate mindset, viewing AI and ML as tools for creating measurable business value rather than purely academic exercises.
-
-Long-term, he is interested in leading strategic data science initiatives and potentially developing expertise in specialized areas such as cultural AI or optimization systems. His management background provides him with business perspective that would be valuable as he progresses into leadership roles.
-
-His motivation centers on bridging the gap between cutting-edge technical work and practical business impact. This combination of academic rigor with real-world results suggests he will continue advancing boundaries while consistently delivering value."""
+His management background combined with technical skills positions him well for future leadership roles."""
     
     def get_general_response(self, is_casual: bool = False) -> str:
-        return f"""Aniket Shirsat is currently pursuing his {self.aniket_data['personal_info']['current_status'].lower()} with a perfect {self.aniket_data['education']['current']['gpa']} GPA while serving as a {self.aniket_data['personal_info']['current_role'].lower()}.
+        return f"""Aniket Shirsat is pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant.
 
-His distinguishing characteristic is the measurable business impact he has already generated. His accomplishments include achieving {self.aniket_data['achievements'][1]}, delivering {self.aniket_data['achievements'][2]}, and maintaining {self.aniket_data['achievements'][4]}.
+His key highlights include over $1 million in business impact from ML projects, skills in Python, R, SQL, AWS, Azure, and GCP, plus leadership experience with the Data Science Club and rowing team.
 
-From a technical perspective, he is proficient in {', '.join(self.aniket_data['technical_skills']['programming'])}, experienced with {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, and has hands-on experience with machine learning, computer vision, and natural language processing.
-
-He brings leadership experience as {self.aniket_data['leadership'][0]} and maintains active involvement with {self.aniket_data['leadership'][1]}. This combination of academic excellence, technical expertise, and leadership capabilities makes him well-suited for data science and machine learning roles.
-
-Currently, he is {self.aniket_data['career_goals'].lower()} where he can apply his combination of technical expertise and business understanding to drive meaningful organizational impact."""
+He's currently seeking data science and machine learning opportunities where he can apply his combination of technical expertise and business understanding."""
 
 def main():
-    """Full-featured chatbot with NO suggested questions interface"""
+    """Simple chatbot with required name and optional email"""
     st.set_page_config(
         page_title="Chat with Aniket's AI Assistant",
         page_icon="💬",
         layout="centered"
     )
     
-    # Clean CSS - NO suggestion styling
+    # Clean CSS
     st.markdown("""
     <style>
         .stApp {
@@ -866,15 +926,14 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    # Initialize - FULL VERSION
+    # Initialize
     if "chatbot" not in st.session_state:
         st.session_state.chatbot = SmartHybridChatbot()
     
     if "session_id" not in st.session_state:
-        st.session_state.session_id = f"full_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        st.session_state.session_id = f"simple_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
-    if "user_info_collected" not in st.session_state:
-        st.session_state.user_info_collected = False
+    # Simple initialization - name required, email optional
     if "asking_for_name" not in st.session_state:
         st.session_state.asking_for_name = False
     if "asking_for_name_confirmation" not in st.session_state:
@@ -940,13 +999,13 @@ def main():
     st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
     st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
     
-    # Chat input logic with enhanced name handling
+    # Dynamic chat input placeholders
     if st.session_state.asking_for_name:
         placeholder = "Enter your name..."
     elif st.session_state.asking_for_name_confirmation:
         placeholder = "Please let me know how you'd like to be addressed..."
     elif st.session_state.asking_for_email:
-        placeholder = "Enter your email address..."
+        placeholder = "Enter your email address (or type 'skip' to continue without email)..."
     else:
         placeholder = "Ask about Aniket's skills, experience, projects, or why you should hire him..."
     
@@ -986,11 +1045,10 @@ def main():
                 # Use the first name as suggested
                 name_parts = st.session_state.user_name.split()
                 st.session_state.user_display_name = name_parts[0]
-                response = f"Perfect, {st.session_state.user_display_name}! Could you please share your email address?"
+                response = f"Perfect, {st.session_state.user_display_name}! Could you please share your email address? (You can also type 'skip' if you prefer not to share it)"
             
             elif any(word in confirmation_lower for word in ["no", "nope", "actually", "call me", "prefer"]):
                 # They want to be called something different
-                # Try to extract their preferred name from their response
                 corrected_name = None
                 
                 # Look for "call me [name]" pattern
@@ -1022,11 +1080,10 @@ def main():
                     return
                 
                 st.session_state.user_display_name = corrected_name
-                response = f"Perfect, {st.session_state.user_display_name}! Could you please share your email address?"
+                response = f"Perfect, {st.session_state.user_display_name}! Could you please share your email address? (You can also type 'skip' if you prefer not to share it)"
             
             else:
                 # They probably just said their preferred name directly
-                # Try to extract a name from their response
                 corrected_name = extract_name_from_input(prompt)
                 if corrected_name:
                     st.session_state.user_display_name = corrected_name.split()[0]  # Take first word
@@ -1034,41 +1091,45 @@ def main():
                     # Use their response as-is (cleaned up)
                     st.session_state.user_display_name = prompt.strip().title()
                 
-                response = f"Perfect, {st.session_state.user_display_name}! Could you please share your email address?"
+                response = f"Perfect, {st.session_state.user_display_name}! Could you please share your email address? (You can also type 'skip' if you prefer not to share it)"
             
             st.session_state.asking_for_name_confirmation = False
             st.session_state.asking_for_email = True
             st.session_state.messages.append({"role": "assistant", "content": response})
         
         elif st.session_state.asking_for_email:
-            extracted_email = extract_email_from_input(prompt)
-            
-            if extracted_email and is_valid_email(extracted_email):
-                st.session_state.user_email = extracted_email
+            # Handle email collection with skip option
+            if prompt.lower().strip() in ['skip', 'no', 'no thanks', 'not now', 'maybe later', 'pass']:
                 st.session_state.asking_for_email = False
-                st.session_state.user_info_collected = True
-                
-                save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
-                
-                response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                response = f"No problem, {st.session_state.user_display_name}! I'm ready to answer questions about Aniket's professional background. What would you like to know?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
-            
-            elif is_valid_email(prompt.strip()):
-                st.session_state.user_email = prompt.strip()
-                st.session_state.asking_for_email = False
-                st.session_state.user_info_collected = True
-                
-                save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
-                
-                response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
-                st.session_state.messages.append({"role": "assistant", "content": response})
-            
             else:
-                response = "That doesn't look like a valid email address. Please enter your email (e.g., john@company.com)."
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                extracted_email = extract_email_from_input(prompt)
+                
+                if extracted_email and is_valid_email(extracted_email):
+                    st.session_state.user_email = extracted_email
+                    st.session_state.asking_for_email = False
+                    
+                    save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
+                    
+                    response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                
+                elif is_valid_email(prompt.strip()):
+                    st.session_state.user_email = prompt.strip()
+                    st.session_state.asking_for_email = False
+                    
+                    save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
+                    
+                    response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                
+                else:
+                    response = "That doesn't look like a valid email address. Please enter your email (e.g., john@company.com) or type 'skip' to continue without email."
+                    st.session_state.messages.append({"role": "assistant", "content": response})
         
         else:
-            # Normal chat - FULL RESPONSE SYSTEM
+            # Normal chat - standard response system
             with st.spinner("🤖 Analyzing your question..."):
                 response, intent = st.session_state.chatbot.generate_response(prompt)
             
@@ -1117,7 +1178,7 @@ def main():
         
         st.rerun()
 
-# Add reset check at the beginning of the chat input
+# Reset check function
 def check_and_reset_if_needed():
     """Check if we need to reset the conversation"""
     if st.session_state.get('reset_on_next_message', False):
@@ -1126,7 +1187,7 @@ def check_and_reset_if_needed():
         return True
     return False
 
-# Add conversation thread tracking functions
+# Conversation thread tracking functions
 def log_conversation_with_thread(session_id: str, user_message: str, bot_response: str, intent: str, user_name: str = "", user_email: str = ""):
     """Enhanced logging that maintains conversation threads"""
     
@@ -1176,25 +1237,24 @@ def reset_conversation_session():
     user_name = st.session_state.get('user_name', '')
     user_email = st.session_state.get('user_email', '')
     user_display_name = st.session_state.get('user_display_name', '')
-    user_info_collected = st.session_state.get('user_info_collected', False)
     
     # Clear conversation-specific state
     for key in list(st.session_state.keys()):
-        if key not in ['user_name', 'user_email', 'user_display_name', 'user_info_collected', 'chatbot']:
+        if key not in ['user_name', 'user_email', 'user_display_name', 'chatbot']:
             del st.session_state[key]
     
     # Restore user info
     st.session_state.user_name = user_name
     st.session_state.user_email = user_email
     st.session_state.user_display_name = user_display_name
-    st.session_state.user_info_collected = user_info_collected
     
     # Create new session ID
-    st.session_state.session_id = f"full_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    st.session_state.session_id = f"simple_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     # Reset conversation state
     st.session_state.awaiting_closure_response = False
     st.session_state.conversation_thread = []
+    st.session_state.asking_for_email = False
     
     # Set fresh greeting message
     greeting_name = f" {user_display_name}" if user_display_name else ""
@@ -1204,6 +1264,8 @@ def reset_conversation_session():
             "content": f"Hello{greeting_name}! I'm ready to help with any new questions about Aniket's background, skills, or experience. What would you like to know?"
         }
     ]
+
+def save_complete_conversation(session_id: str, user_name: str, user_email: str, conversation_messages: List[Dict]):
     """Save complete conversation thread"""
     try:
         db = get_shared_db()
