@@ -1009,18 +1009,44 @@ def main():
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         
-
-        
-        .stButton > button {
-            width: 100%;
-            border-radius: 25px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+        .email-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 15px 0;
+            flex-wrap: wrap;
         }
         
-        .stButton > button:hover {
+        .email-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+            text-align: center;
+        }
+        
+        .email-button.yes {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+        
+        .email-button.yes:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(76,175,80,0.3);
+        }
+        
+        .email-button.no {
+            background: linear-gradient(135deg, #f44336 0%, #da190b 100%);
+            color: white;
+        }
+        
+        .email-button.no:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244,67,54,0.3);
         }
         
         /* Mobile responsive */
@@ -1052,6 +1078,15 @@ def main():
             .message-bubble, .user-bubble {
                 max-width: 280px;
                 font-size: 13px;
+            }
+            
+            .email-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .email-button {
+                width: 200px;
             }
         }
     </style>
@@ -1139,21 +1174,23 @@ def main():
     # **NEW: Button-based email collection**
     if st.session_state.showing_email_buttons and not st.session_state.email_choice_made:
         st.markdown("""
-        <div style="text-align: center; margin: 20px 0; font-weight: 600; color: #333;">
-            Would you like to share your email with Aniket?
+        <div class="email-buttons">
+            <div style="width: 100%; text-align: center; margin-bottom: 10px; font-weight: 600; color: #333;">
+                Would you like to share your email with Aniket?
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("Yes", key="email_yes", use_container_width=True):
+            if st.button("✅ Yes, I'll share", key="email_yes", use_container_width=True):
                 st.session_state.email_choice_made = True
                 st.session_state.showing_email_buttons = False
                 st.session_state.asking_for_email = True
                 
                 # Add user choice to messages
-                st.session_state.messages.append({"role": "user", "content": "Yes"})
+                st.session_state.messages.append({"role": "user", "content": "✅ Yes, I'll share my email"})
                 st.session_state.messages.append({
                     "role": "assistant", 
                     "content": "Perfect! Please enter your email address below:"
@@ -1161,12 +1198,12 @@ def main():
                 st.rerun()
         
         with col2:
-            if st.button("No", key="email_no", use_container_width=True):
+            if st.button("❌ No, skip", key="email_no", use_container_width=True):
                 st.session_state.email_choice_made = True
                 st.session_state.showing_email_buttons = False
                 
                 # Add user choice to messages
-                st.session_state.messages.append({"role": "user", "content": "No"})
+                st.session_state.messages.append({"role": "user", "content": "❌ No, skip email"})
                 st.session_state.messages.append({
                     "role": "assistant", 
                     "content": f"No problem, {st.session_state.user_display_name}! I'm ready to answer questions about Aniket's professional background. What would you like to know?"
@@ -1181,6 +1218,11 @@ def main():
         placeholder = "Enter your name..."
     elif st.session_state.asking_for_name_confirmation:
         placeholder = "Please let me know how you'd like to be addressed..."
+    elif st.session_state.showing_email_buttons:
+        placeholder = "Please use the buttons above to choose..."
+        # Disable input when showing buttons
+        st.chat_input(placeholder, disabled=True)
+        return
     elif st.session_state.asking_for_email:
         placeholder = "Enter your email address..."
     elif st.session_state.asking_for_message:
@@ -1188,248 +1230,147 @@ def main():
     else:
         placeholder = "Ask about Aniket's skills, experience, projects, or why you should hire him..."
     
-    # Disable input when showing email buttons
-    if st.session_state.showing_email_buttons and not st.session_state.email_choice_made:
-        st.chat_input("Please use the buttons above to choose...", disabled=True)
-    else:
-        if prompt := st.chat_input(placeholder):
-    # Disable input when showing email buttons
-    if st.session_state.showing_email_buttons and not st.session_state.email_choice_made:
-        st.chat_input("Please use the buttons above to choose...", disabled=True)
-    else:
-        if prompt := st.chat_input(placeholder):
-            # Check if we need to reset conversation first
-            if check_and_reset_if_needed():
-                st.rerun()
-                return
+    if prompt := st.chat_input(placeholder):
+        # Check if we need to reset conversation first
+        if check_and_reset_if_needed():
+            st.rerun()
+            return
+        
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        if st.session_state.asking_for_name:
+            extracted_name = extract_name_from_input(prompt)
             
-            st.session_state.messages.append({"role": "user", "content": prompt})
+            if extracted_name:
+                st.session_state.user_name = extracted_name
+                st.session_state.asking_for_name = False
+                st.session_state.asking_for_name_confirmation = True
+                
+                # Extract first name for simple confirmation
+                name_parts = extracted_name.split()
+                first_name = name_parts[0]
+                
+                response = f"Thank you! Should I call you {first_name}?"
+                
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            else:
+                response = "I didn't catch your name clearly. Could you please tell me your full name? You can say something like 'My name is John Smith' or just 'John Smith'."
+                st.session_state.messages.append({"role": "assistant", "content": response})
+        
+        elif st.session_state.asking_for_name_confirmation:
+            # Handle name confirmation/correction with simple logic
+            confirmation_lower = prompt.lower().strip()
             
-            if st.session_state.asking_for_name:
-                extracted_name = extract_name_from_input(prompt)
+            # Check if they said yes/agreed to the suggested first name
+            if any(word in confirmation_lower for word in ["yes", "yeah", "yep", "sure", "ok", "okay", "that's fine", "sounds good", "correct", "right"]):
+                # Use the first name as suggested
+                name_parts = st.session_state.user_name.split()
+                st.session_state.user_display_name = name_parts[0]
+                st.session_state.asking_for_name_confirmation = False
+                st.session_state.showing_email_buttons = True
                 
-                if extracted_name:
-                    st.session_state.user_name = extracted_name
-                    st.session_state.asking_for_name = False
-                    st.session_state.asking_for_name_confirmation = True
-                    
-                    # Extract first name for simple confirmation
-                    name_parts = extracted_name.split()
-                    first_name = name_parts[0]
-                    
-                    response = f"Thank you! Should I call you {first_name}?"
-                    
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                else:
-                    response = "I didn't catch your name clearly. Could you please tell me your full name? You can say something like 'My name is John Smith' or just 'John Smith'."
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                response = f"Perfect, {st.session_state.user_display_name}!"
+                st.session_state.messages.append({"role": "assistant", "content": response})
             
-            elif st.session_state.asking_for_name_confirmation:
-                # Handle name confirmation/correction with simple logic
-                confirmation_lower = prompt.lower().strip()
+            elif any(word in confirmation_lower for word in ["no", "nope", "actually", "call me", "prefer"]):
+                # They want to be called something different
+                corrected_name = None
                 
-                # Check if they said yes/agreed to the suggested first name
-                if any(word in confirmation_lower for word in ["yes", "yeah", "yep", "sure", "ok", "okay", "that's fine", "sounds good", "correct", "right"]):
-                    # Use the first name as suggested
-                    name_parts = st.session_state.user_name.split()
-                    st.session_state.user_display_name = name_parts[0]
-                    st.session_state.asking_for_name_confirmation = False
-                    st.session_state.showing_email_buttons = True
-                    
-                    response = f"Perfect, {st.session_state.user_display_name}!"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                # Look for "call me [name]" pattern
+                call_me_match = re.search(r'call me (\w+)', confirmation_lower)
+                if call_me_match:
+                    corrected_name = call_me_match.group(1).title()
                 
-                elif any(word in confirmation_lower for word in ["no", "nope", "actually", "call me", "prefer"]):
-                    # They want to be called something different
-                    corrected_name = None
-                    
-                    # Look for "call me [name]" pattern
-                    call_me_match = re.search(r'call me (\w+)', confirmation_lower)
-                    if call_me_match:
-                        corrected_name = call_me_match.group(1).title()
-                    
-                    # Look for "prefer [name]" pattern
-                    prefer_match = re.search(r'prefer (\w+)', confirmation_lower)
-                    if prefer_match:
-                        corrected_name = prefer_match.group(1).title()
-                    
-                    # Look for "actually [name]" pattern
-                    actually_match = re.search(r'actually (\w+)', confirmation_lower)
-                    if actually_match:
-                        corrected_name = actually_match.group(1).title()
-                    
-                    # If no pattern found, try to extract any name from the response
-                    if not corrected_name:
-                        extracted = extract_name_from_input(prompt)
-                        if extracted:
-                            corrected_name = extracted.split()[0]  # Take first word of extracted name
-                    
-                    # If still no name found, ask for clarification
-                    if not corrected_name:
-                        response = "What would you prefer I call you?"
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                        st.rerun()
-                        return
-                    
-                    st.session_state.user_display_name = corrected_name
-                    st.session_state.asking_for_name_confirmation = False
-                    st.session_state.showing_email_buttons = True
-                    
-                    response = f"Perfect, {st.session_state.user_display_name}!"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                # Look for "prefer [name]" pattern
+                prefer_match = re.search(r'prefer (\w+)', confirmation_lower)
+                if prefer_match:
+                    corrected_name = prefer_match.group(1).title()
                 
-                else:
-                    # They probably just said their preferred name directly
-                    corrected_name = extract_name_from_input(prompt)
-                    if corrected_name:
-                        st.session_state.user_display_name = corrected_name.split()[0]  # Take first word
-                    else:
-                        # Use their response as-is (cleaned up)
-                        st.session_state.user_display_name = prompt.strip().title()
-                    
-                    st.session_state.asking_for_name_confirmation = False
-                    st.session_state.showing_email_buttons = True
-                    
-                    response = f"Perfect, {st.session_state.user_display_name}!"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-            
-            elif st.session_state.asking_for_email:
-                # Handle email input
-                extracted_email = extract_email_from_input(prompt)
+                # Look for "actually [name]" pattern
+                actually_match = re.search(r'actually (\w+)', confirmation_lower)
+                if actually_match:
+                    corrected_name = actually_match.group(1).title()
                 
-                if extracted_email and is_valid_email(extracted_email):
-                    # Valid email - save it
-                    st.session_state.user_email = extracted_email
-                    st.session_state.asking_for_email = False
-                    
-                    save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
-                    
-                    response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                # If no pattern found, try to extract any name from the response
+                if not corrected_name:
+                    extracted = extract_name_from_input(prompt)
+                    if extracted:
+                        corrected_name = extracted.split()[0]  # Take first word of extracted name
                 
-                elif is_valid_email(prompt.strip()):
-                    # Valid email format - save it
-                    st.session_state.user_email = prompt.strip()
-                    st.session_state.asking_for_email = False
-                    
-                    save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
-                    
-                    response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                # If still no name found, ask for clarification
+                if not corrected_name:
+                    response = "What would you prefer I call you?"
                     st.session_state.messages.append({"role": "assistant", "content": response})
+                    st.rerun()
+                    return
                 
-                else:
-                    # Invalid email - ask again
-                    response = "That doesn't look like a valid email address. Could you please try again? (e.g., john@company.com)"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-            
-            elif st.session_state.asking_for_message:
-                # Handle message collection for Aniket
-                message_content = prompt.strip()
+                st.session_state.user_display_name = corrected_name
+                st.session_state.asking_for_name_confirmation = False
+                st.session_state.showing_email_buttons = True
                 
-                if message_content.lower() in ['cancel', 'nevermind', 'skip']:
-                    st.session_state.asking_for_message = False
-                    response = f"No problem, {st.session_state.user_display_name}! Is there anything else you'd like to know about Aniket?"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                elif len(message_content) < 10:
-                    response = "Could you please provide a bit more detail in your message? What would you like Aniket to know or follow up about?"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                else:
-                    # Save the message
-                    message_saved = save_message_for_aniket(
-                        st.session_state.user_name,
-                        st.session_state.user_email,
-                        message_content,
-                        st.session_state.message_contact_info
-                    )
-                    
-                    st.session_state.asking_for_message = False
-                    
-                    if message_saved:
-                        response = f"""Perfect! I've saved your message for Aniket:
-
-"{message_content}"
-
-He'll review this and follow up with you within 1-2 business days. You can also reach him directly at ashirsat@iu.edu if you need a faster response."""
-                    else:
-                        response = f"""I've noted your message. Please reach Aniket directly at ashirsat@iu.edu, call +1 463 279 6071, or connect on LinkedIn for the fastest response.
-
-Your message: "{message_content}" """
-                    
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                response = f"Perfect, {st.session_state.user_display_name}!"
+                st.session_state.messages.append({"role": "assistant", "content": response})
             
             else:
-                # Normal chat - standard response system
-                with st.spinner("🤖 Analyzing your question..."):
-                    response, intent = st.session_state.chatbot.generate_response(prompt)
-                
-                # Special handling for message_for_contact intent
-                if intent == "message_for_contact":
-                    # Extract contact info from the current message
-                    phone_pattern = r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})'
-                    phone_match = re.search(phone_pattern, prompt)
-                    email_match = extract_email_from_input(prompt)
-                    
-                    contact_info = ""
-                    if phone_match:
-                        contact_info = f"Phone: {phone_match.group(1)}"
-                    if email_match:
-                        if contact_info:
-                            contact_info += f", Email: {email_match}"
-                        else:
-                            contact_info = f"Email: {email_match}"
-                    
-                    st.session_state.message_contact_info = contact_info
-                    st.session_state.asking_for_message = True
-                    
-                    contact_part = f" I have your contact info: {contact_info}." if contact_info else ""
-                    response = f"""I'd be happy to have Aniket contact you!{contact_part}
-
-What message would you like me to pass along to him? Please share what you'd like to discuss or any specific questions you have."""
-                    
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                # Handle conversation ending
-                if intent == "end_conversation":
-                    # End the conversation and reset for fresh start
-                    st.session_state.conversation_ending = True
-                    
-                    # Save final conversation thread
-                    if hasattr(st.session_state, 'conversation_thread') and st.session_state.conversation_thread:
-                        # Add final user message to thread
-                        st.session_state.conversation_thread.append({
-                            'role': 'user',
-                            'content': prompt,
-                            'timestamp': datetime.now().isoformat()
-                        })
-                        # Add final bot response to thread
-                        st.session_state.conversation_thread.append({
-                            'role': 'assistant',
-                            'content': response,
-                            'intent': intent,
-                            'timestamp': datetime.now().isoformat()
-                        })
-                        
-                        save_complete_conversation(
-                            st.session_state.session_id,
-                            st.session_state.get('user_name', ''),
-                            st.session_state.get('user_email', ''),
-                            st.session_state.conversation_thread
-                        )
-                    
-                    # Schedule reset for next interaction
-                    st.session_state.reset_on_next_message = True
+                # They probably just said their preferred name directly
+                corrected_name = extract_name_from_input(prompt)
+                if corrected_name:
+                    st.session_state.user_display_name = corrected_name.split()[0]  # Take first word
                 else:
-                    # Enhanced logging with conversation threads
-                    log_conversation_with_thread(
-                        st.session_state.session_id,
-                        prompt,
-                        response,
-                        intent,
-                        st.session_state.user_name,
-                        st.session_state.user_email
-                    )
+                    # Use their response as-is (cleaned up)
+                    st.session_state.user_display_name = prompt.strip().title()
+                
+                st.session_state.asking_for_name_confirmation = False
+                st.session_state.showing_email_buttons = True
+                
+                response = f"Perfect, {st.session_state.user_display_name}!"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+        
+        elif st.session_state.asking_for_email:
+            # Handle email input
+            extracted_email = extract_email_from_input(prompt)
             
-            st.rerun()  st.session_state.user_email,
+            if extracted_email and is_valid_email(extracted_email):
+                # Valid email - save it
+                st.session_state.user_email = extracted_email
+                st.session_state.asking_for_email = False
+                
+                save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
+                
+                response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            elif is_valid_email(prompt.strip()):
+                # Valid email format - save it
+                st.session_state.user_email = prompt.strip()
+                st.session_state.asking_for_email = False
+                
+                save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
+                
+                response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            else:
+                # Invalid email - ask again
+                response = "That doesn't look like a valid email address. Could you please try again? (e.g., john@company.com)"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+        
+        elif st.session_state.asking_for_message:
+            # Handle message collection for Aniket
+            message_content = prompt.strip()
+            
+            if message_content.lower() in ['cancel', 'nevermind', 'skip']:
+                st.session_state.asking_for_message = False
+                response = f"No problem, {st.session_state.user_display_name}! Is there anything else you'd like to know about Aniket?"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            elif len(message_content) < 10:
+                response = "Could you please provide a bit more detail in your message? What would you like Aniket to know or follow up about?"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            else:
+                # Save the message
+                message_saved = save_message_for_aniket(
+                    st.session_state.user_name,
+                    st.session_state.user_email,
                     message_content,
                     st.session_state.message_contact_info
                 )
