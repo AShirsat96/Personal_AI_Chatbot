@@ -10,11 +10,17 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 
-# Add OpenAI import
-import openai
+# Updated OpenAI import
+from openai import OpenAI
 
-# Set OpenAI API key
-openai.api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+# OpenAI client setup
+@st.cache_resource
+def get_openai_client():
+    """Get OpenAI client instance"""
+    api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+    if api_key:
+        return OpenAI(api_key=api_key)
+    return None
 
 def extract_name_from_input(user_input: str) -> Optional[str]:
     """Extract name from natural language input - SUPPORTS FULL NAMES"""
@@ -175,6 +181,7 @@ class GitHubGistDatabase:
             "resume_content": None,
             "avatar_data": None,
             "app_settings": {},
+            "messages_for_aniket": [],
             "last_updated": datetime.now().isoformat()
         }
     
@@ -238,6 +245,33 @@ class GitHubGistDatabase:
         except Exception as e:
             return False
     
+    def save_message_for_aniket(self, user_name: str, user_email: str, message_content: str, contact_info: str = "") -> bool:
+        """Save messages left for Aniket"""
+        try:
+            data = self._load_gist_data()
+            
+            message_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "user_name": user_name,
+                "user_email": user_email,
+                "message_content": message_content,
+                "contact_info": contact_info,
+                "status": "unread",
+                "session_id": st.session_state.get('session_id', '')
+            }
+            
+            if "messages_for_aniket" not in data:
+                data["messages_for_aniket"] = []
+            
+            data["messages_for_aniket"].append(message_entry)
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            st.error(f"Error saving message: {str(e)}")
+            return False
+    
     def get_avatar(self) -> Optional[str]:
         """Get current avatar from shared database"""
         try:
@@ -265,6 +299,11 @@ def log_conversation_to_dashboard(session_id: str, user_message: str, bot_respon
     """Log conversation to dashboard"""
     db = get_shared_db()
     return db.log_conversation(session_id, user_message, bot_response, intent, user_name, user_email)
+
+def save_message_for_aniket(user_name: str, user_email: str, message_content: str, contact_info: str = "") -> bool:
+    """Save message for Aniket to shared database"""
+    db = get_shared_db()
+    return db.save_message_for_aniket(user_name, user_email, message_content, contact_info)
 
 def get_shared_avatar() -> Optional[str]:
     """Get avatar from shared database"""
@@ -388,6 +427,10 @@ Always use the factual information provided about Aniket to answer questions acc
     def get_openai_response(self, user_question: str, intent: str, context: Dict[str, bool]) -> str:
         """Generate response using OpenAI API"""
         try:
+            client = get_openai_client()
+            if not client:
+                return self.get_fallback_response(intent)
+                
             # Create context-specific prompt based on intent
             if intent == "skills":
                 context_data = f"""Technical Skills: {', '.join(self.aniket_data['technical_skills']['programming'])}, {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}, {', '.join(self.aniket_data['technical_skills']['ai_ml'])}
@@ -451,9 +494,9 @@ User question: "{user_question}"
 
 Provide a natural, conversational response (2-3 sentences max) that directly answers their question. Sound like a helpful human assistant recommending Aniket."""
 
-            # Call OpenAI API
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",  # or "gpt-4" if you have access
+            # Call OpenAI API with new format
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": prompt}
@@ -486,9 +529,8 @@ Provide a natural, conversational response (2-3 sentences max) that directly ans
     
     def use_openai_for_response(self) -> bool:
         """Check if OpenAI API should be used"""
-        # Check if API key is available
-        api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
-        return bool(api_key)
+        client = get_openai_client()
+        return client is not None
     
     def should_offer_conversation_closure(self, user_input: str, message_count: int) -> bool:
         """Determine if we should offer to end the conversation"""
@@ -568,8 +610,22 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
         if len(input_lower) < 2:
             return "general"
         
+        # Enhanced message for contact detection - moved higher in priority
+        if (any(phrase in input_lower for phrase in [
+            "leave a message", "message for him", "ask him to contact", "have him call", 
+            "get back to me", "follow up", "reach out to me", "contact me back",
+            "call me back", "email me back", "get in touch with me", "message me",
+            "have him reach out", "ask him to reach out", "tell him to call",
+            "let him know", "pass along", "forward this", "send this to him"
+        ]) or 
+        (any(word in input_lower for word in ["my number", "my phone", "call me", "reach me", "contact me"]) and 
+         any(char.isdigit() for char in user_input)) or
+        (re.search(r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})', user_input) and
+         any(word in input_lower for word in ["call", "contact", "reach", "message", "text"]))):
+            return "message_for_contact"
+        
         # First check for specific question patterns - be more specific about greetings
-        if any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3 and not any(word in input_lower for word in ["skill", "project", "hire", "experience", "hobby", "personal"]):
+        elif any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3 and not any(word in input_lower for word in ["skill", "project", "hire", "experience", "hobby", "personal"]):
             return "greeting"
         elif any(pattern in input_lower for pattern in ["thank", "thanks", "appreciate", "grateful"]) and not any(word in input_lower for word in ["skill", "project", "hire", "experience", "hobby", "personal"]):
             return "thanks"
@@ -603,10 +659,6 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
         # Contact and reaching out - expanded
         elif any(word in input_lower for word in ["contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "how to reach", "communication", "contact info", "contact information", "reach out", "get hold", "find him", "connect with"]):
             return "contact"
-        
-        # Message for contact - NEW: Detect when someone leaves a message with contact info
-        elif any(phrase in input_lower for phrase in ["leave a message", "message for him", "ask him to contact", "have him call", "get back to me", "follow up", "reach out to me", "contact me"]) or (any(word in input_lower for word in ["my number", "my phone", "call me", "reach me"]) and any(char.isdigit() for char in user_input)):
-            return "message_for_contact"
         
         # Conversation flow management - NEW
         elif st.session_state.get('awaiting_closure_response', False):
@@ -795,18 +847,19 @@ He typically responds to professional inquiries within 1-2 business days."""
     
     def handle_message_for_contact(self, user_input: str) -> str:
         """Handle cases where users leave messages for Aniket to contact them"""
+        # This will be overridden by the message collection flow in main()
         phone_pattern = r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})'
         phone_match = re.search(phone_pattern, user_input)
         
         if phone_match:
             phone_number = phone_match.group(1)
-            return f"""Got it! I'll let Aniket know to contact you at {phone_number}. He'll follow up within 1-2 business days.
+            return f"""I'd be happy to have Aniket contact you at {phone_number}! 
 
-You can also reach him directly at ashirsat@iu.edu or on LinkedIn at https://www.linkedin.com/in/aniketshirsatsg/"""
+What message would you like me to pass along to him?"""
         else:
-            return """I'll make sure Aniket sees your message. He'll follow up within 1-2 business days.
+            return """I'd be happy to have Aniket contact you! 
 
-You can also reach him directly at ashirsat@iu.edu, call +1 463 279 6071, or connect on LinkedIn at https://www.linkedin.com/in/aniketshirsatsg/"""
+What message would you like me to pass along to him, and what's the best way for him to reach you?"""
     
     def get_availability_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
         return """Aniket is available immediately for interviews and discussions. He's flexible with start dates and can accommodate your timeline.
@@ -957,6 +1010,10 @@ def main():
         st.session_state.asking_for_name_confirmation = False
     if "asking_for_email" not in st.session_state:
         st.session_state.asking_for_email = False
+    if "asking_for_message" not in st.session_state:
+        st.session_state.asking_for_message = False
+    if "message_contact_info" not in st.session_state:
+        st.session_state.message_contact_info = ""
     if "user_name" not in st.session_state:
         st.session_state.user_name = ""
     if "user_email" not in st.session_state:
@@ -1023,6 +1080,8 @@ def main():
         placeholder = "Please let me know how you'd like to be addressed..."
     elif st.session_state.asking_for_email:
         placeholder = "Enter your email address (or type 'skip' to continue without email)..."
+    elif st.session_state.asking_for_message:
+        placeholder = "Type your message for Aniket (or 'cancel' to skip)..."
     else:
         placeholder = "Ask about Aniket's skills, experience, projects, or why you should hire him..."
     
@@ -1169,11 +1228,70 @@ def main():
                     response = f"Thanks, {st.session_state.user_display_name}! I'm ready to answer questions about Aniket's professional background. What would you like to know?"
                     st.session_state.messages.append({"role": "assistant", "content": response})
         
+        elif st.session_state.asking_for_message:
+            # Handle message collection for Aniket
+            message_content = prompt.strip()
+            
+            if message_content.lower() in ['cancel', 'nevermind', 'skip']:
+                st.session_state.asking_for_message = False
+                response = f"No problem, {st.session_state.user_display_name}! Is there anything else you'd like to know about Aniket?"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            elif len(message_content) < 10:
+                response = "Could you please provide a bit more detail in your message? What would you like Aniket to know or follow up about?"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            else:
+                # Save the message
+                message_saved = save_message_for_aniket(
+                    st.session_state.user_name,
+                    st.session_state.user_email,
+                    message_content,
+                    st.session_state.message_contact_info
+                )
+                
+                st.session_state.asking_for_message = False
+                
+                if message_saved:
+                    response = f"""Perfect! I've saved your message for Aniket:
+
+"{message_content}"
+
+He'll review this and follow up with you within 1-2 business days. You can also reach him directly at ashirsat@iu.edu if you need a faster response."""
+                else:
+                    response = f"""I've noted your message. Please reach Aniket directly at ashirsat@iu.edu, call +1 463 279 6071, or connect on LinkedIn for the fastest response.
+
+Your message: "{message_content}" """
+                
+                st.session_state.messages.append({"role": "assistant", "content": response})
+        
         else:
             # Normal chat - standard response system
             with st.spinner("🤖 Analyzing your question..."):
                 response, intent = st.session_state.chatbot.generate_response(prompt)
             
+            # Special handling for message_for_contact intent
+            if intent == "message_for_contact":
+                # Extract contact info from the current message
+                phone_pattern = r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})'
+                phone_match = re.search(phone_pattern, prompt)
+                email_match = extract_email_from_input(prompt)
+                
+                contact_info = ""
+                if phone_match:
+                    contact_info = f"Phone: {phone_match.group(1)}"
+                if email_match:
+                    if contact_info:
+                        contact_info += f", Email: {email_match}"
+                    else:
+                        contact_info = f"Email: {email_match}"
+                
+                st.session_state.message_contact_info = contact_info
+                st.session_state.asking_for_message = True
+                
+                contact_part = f" I have your contact info: {contact_info}." if contact_info else ""
+                response = f"""I'd be happy to have Aniket contact you!{contact_part}
+
+What message would you like me to pass along to him? Please share what you'd like to discuss or any specific questions you have."""
+                
             st.session_state.messages.append({"role": "assistant", "content": response})
             
             # Handle conversation ending
@@ -1296,6 +1414,8 @@ def reset_conversation_session():
     st.session_state.awaiting_closure_response = False
     st.session_state.conversation_thread = []
     st.session_state.asking_for_email = False
+    st.session_state.asking_for_message = False
+    st.session_state.message_contact_info = ""
     
     # Set fresh greeting message
     greeting_name = f" {user_display_name}" if user_display_name else ""
