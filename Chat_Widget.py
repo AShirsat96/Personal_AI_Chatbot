@@ -22,70 +22,6 @@ def get_openai_client():
         return OpenAI(api_key=api_key)
     return None
 
-def extract_name_from_input(user_input: str) -> Optional[str]:
-    """Extract name from natural language input - SUPPORTS FULL NAMES"""
-    input_lower = user_input.lower().strip()
-    
-    # Remove common greetings and punctuation
-    input_clean = re.sub(r'[^\w\s]', '', input_lower)
-    
-    # Names to exclude (Aniket's name variations)
-    excluded_names = {'aniket', 'aniket shirsat'}
-    
-    # FIXED: More specific patterns that look for "this is" pattern first
-    name_patterns = [
-        r'(?:this\s+is|its)\s+(.+)',  # "This is Prasad" - moved to top priority
-        r'(?:hello|hi|hey)\s+(?:my\s+name\s+is|i\s*am|i\'m)\s+(.+)',
-        r'(?:my\s+name\s+is|i\s*am|i\'m)\s+(.+)',
-        r'(.+?)\s+here'  # Fixed: was incomplete before
-    ]
-    
-    for pattern in name_patterns:
-        match = re.search(pattern, input_clean)
-        if match:
-            potential_name = match.group(1).strip()
-            
-            # Filter out common non-name words
-            non_names = {
-                'hello', 'hi', 'hey', 'good', 'morning', 'afternoon', 'evening',
-                'my', 'name', 'is', 'am', 'im', 'this', 'its', 'here', 'there',
-                'yes', 'no', 'ok', 'okay', 'sure', 'thanks', 'thank', 'you',
-                'please', 'can', 'could', 'would', 'will', 'the', 'a', 'an'
-            }
-            
-            # Check if it's a valid name (not just non-name words)
-            name_words = potential_name.split()
-            valid_name_words = [word for word in name_words if word not in non_names and len(word) >= 2 and word.lower() not in excluded_names]
-            
-            if valid_name_words:
-                # Capitalize each word properly
-                extracted_name = ' '.join(word.capitalize() for word in valid_name_words)
-                # Final check: don't return if it matches excluded names
-                if extracted_name.lower() in excluded_names:
-                    continue
-                return extracted_name
-    
-    # If no pattern matches, check if it's just a name without intro words
-    words = input_clean.split()
-    non_names = {
-        'hello', 'hi', 'hey', 'good', 'morning', 'afternoon', 'evening',
-        'my', 'name', 'is', 'am', 'im', 'this', 'its', 'here', 'there',
-        'yes', 'no', 'ok', 'okay', 'sure', 'thanks', 'thank', 'you',
-        'please', 'can', 'could', 'would', 'will', 'the', 'a', 'an'
-    }
-    
-    # Filter out non-name words and keep valid name parts
-    valid_words = [word for word in words if word not in non_names and len(word) >= 2 and word.lower() not in excluded_names]
-    
-    if valid_words:
-        extracted_name = ' '.join(word.capitalize() for word in valid_words)
-        # Final check: don't return if it matches excluded names
-        if extracted_name.lower() in excluded_names:
-            return None
-        return extracted_name
-    
-    return None
-
 def extract_email_from_input(user_input: str) -> Optional[str]:
     """Extract email from natural language input"""
     # Look for email patterns
@@ -895,7 +831,7 @@ His key highlights include over $1 million in business impact from ML projects, 
 He's currently seeking data science and machine learning opportunities where he can apply his combination of technical expertise and business understanding."""
 
 def main():
-    """Enhanced chatbot with button-based email collection"""
+    """Enhanced chatbot with simplified name collection"""
     st.set_page_config(
         page_title="Chat with Aniket's AI Assistant",
         page_icon="💬",
@@ -1099,7 +1035,7 @@ def main():
     if "session_id" not in st.session_state:
         st.session_state.session_id = f"enhanced_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
-    # Enhanced initialization with button-based email collection
+    # Simplified initialization - only ask for name once, no validation
     if "asking_for_name" not in st.session_state:
         st.session_state.asking_for_name = False
     if "showing_email_buttons" not in st.session_state:
@@ -1204,7 +1140,7 @@ def main():
                 st.session_state.messages.append({"role": "user", "content": "❌ No, skip email"})
                 st.session_state.messages.append({
                     "role": "assistant", 
-                    "content": f"No problem, {st.session_state.user_display_name}! I'm ready to answer questions about Aniket's professional background. What would you like to know?"
+                    "content": f"No problem{', ' + st.session_state.user_display_name if st.session_state.user_display_name else ''}! I'm ready to answer questions about Aniket's professional background. What would you like to know?"
                 })
                 st.rerun()
     
@@ -1235,25 +1171,26 @@ def main():
         st.session_state.messages.append({"role": "user", "content": prompt})
         
         if st.session_state.asking_for_name:
-            extracted_name = extract_name_from_input(prompt)
+            # SIMPLIFIED: Accept whatever they type as the name, no validation
+            user_input = prompt.strip()
             
-            if extracted_name:
-                st.session_state.user_name = extracted_name
-                st.session_state.asking_for_name = False
-                
-                # Extract first name for display
-                name_parts = extracted_name.split()
+            # Set the name (even if empty)
+            st.session_state.user_name = user_input if user_input else "Guest"
+            st.session_state.asking_for_name = False
+            
+            # Extract first name for display (or use full name if one word)
+            if user_input:
+                name_parts = user_input.split()
                 st.session_state.user_display_name = name_parts[0]
-                
-                # Directly proceed to email buttons
-                st.session_state.showing_email_buttons = True
-                
-                response = f"Perfect, {st.session_state.user_display_name}!"
-                
-                st.session_state.messages.append({"role": "assistant", "content": response})
             else:
-                response = "I didn't catch your name clearly. Could you please tell me your full name? You can say something like 'My name is John Smith' or just 'John Smith'."
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                st.session_state.user_display_name = "Guest"
+            
+            # Directly proceed to email buttons
+            st.session_state.showing_email_buttons = True
+            
+            response = f"Perfect, {st.session_state.user_display_name}!"
+            
+            st.session_state.messages.append({"role": "assistant", "content": response})
         
         elif st.session_state.asking_for_email:
             # Handle email input
