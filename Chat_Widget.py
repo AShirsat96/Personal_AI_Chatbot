@@ -1185,12 +1185,8 @@ def main():
             else:
                 st.session_state.user_display_name = "Guest"
             
-            # Directly proceed to email buttons
+            # Directly proceed to email buttons without intermediate response
             st.session_state.showing_email_buttons = True
-            
-            response = f"Perfect, {st.session_state.user_display_name}!"
-            
-            st.session_state.messages.append({"role": "assistant", "content": response})
         
         elif st.session_state.asking_for_email:
             # Handle email input
