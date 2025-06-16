@@ -1102,8 +1102,6 @@ def main():
     # Enhanced initialization with button-based email collection
     if "asking_for_name" not in st.session_state:
         st.session_state.asking_for_name = False
-    if "asking_for_name_confirmation" not in st.session_state:
-        st.session_state.asking_for_name_confirmation = False
     if "showing_email_buttons" not in st.session_state:
         st.session_state.showing_email_buttons = False
     if "asking_for_email" not in st.session_state:
@@ -1216,8 +1214,6 @@ def main():
     # Dynamic chat input placeholders
     if st.session_state.asking_for_name:
         placeholder = "Enter your name..."
-    elif st.session_state.asking_for_name_confirmation:
-        placeholder = "Please let me know how you'd like to be addressed..."
     elif st.session_state.showing_email_buttons:
         placeholder = "Please use the buttons above to choose..."
         # Disable input when showing buttons
@@ -1244,86 +1240,19 @@ def main():
             if extracted_name:
                 st.session_state.user_name = extracted_name
                 st.session_state.asking_for_name = False
-                st.session_state.asking_for_name_confirmation = True
                 
-                # Extract first name for simple confirmation
+                # Extract first name for display
                 name_parts = extracted_name.split()
-                first_name = name_parts[0]
+                st.session_state.user_display_name = name_parts[0]
                 
-                response = f"Thank you! Should I call you {first_name}?"
+                # Directly proceed to email buttons
+                st.session_state.showing_email_buttons = True
+                
+                response = f"Perfect, {st.session_state.user_display_name}!"
                 
                 st.session_state.messages.append({"role": "assistant", "content": response})
             else:
                 response = "I didn't catch your name clearly. Could you please tell me your full name? You can say something like 'My name is John Smith' or just 'John Smith'."
-                st.session_state.messages.append({"role": "assistant", "content": response})
-        
-        elif st.session_state.asking_for_name_confirmation:
-            # Handle name confirmation/correction with simple logic
-            confirmation_lower = prompt.lower().strip()
-            
-            # Check if they said yes/agreed to the suggested first name
-            if any(word in confirmation_lower for word in ["yes", "yeah", "yep", "sure", "ok", "okay", "that's fine", "sounds good", "correct", "right"]):
-                # Use the first name as suggested
-                name_parts = st.session_state.user_name.split()
-                st.session_state.user_display_name = name_parts[0]
-                st.session_state.asking_for_name_confirmation = False
-                st.session_state.showing_email_buttons = True
-                
-                response = f"Perfect, {st.session_state.user_display_name}!"
-                st.session_state.messages.append({"role": "assistant", "content": response})
-            
-            elif any(word in confirmation_lower for word in ["no", "nope", "actually", "call me", "prefer"]):
-                # They want to be called something different
-                corrected_name = None
-                
-                # Look for "call me [name]" pattern
-                call_me_match = re.search(r'call me (\w+)', confirmation_lower)
-                if call_me_match:
-                    corrected_name = call_me_match.group(1).title()
-                
-                # Look for "prefer [name]" pattern
-                prefer_match = re.search(r'prefer (\w+)', confirmation_lower)
-                if prefer_match:
-                    corrected_name = prefer_match.group(1).title()
-                
-                # Look for "actually [name]" pattern
-                actually_match = re.search(r'actually (\w+)', confirmation_lower)
-                if actually_match:
-                    corrected_name = actually_match.group(1).title()
-                
-                # If no pattern found, try to extract any name from the response
-                if not corrected_name:
-                    extracted = extract_name_from_input(prompt)
-                    if extracted:
-                        corrected_name = extracted.split()[0]  # Take first word of extracted name
-                
-                # If still no name found, ask for clarification
-                if not corrected_name:
-                    response = "What would you prefer I call you?"
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                    st.rerun()
-                    return
-                
-                st.session_state.user_display_name = corrected_name
-                st.session_state.asking_for_name_confirmation = False
-                st.session_state.showing_email_buttons = True
-                
-                response = f"Perfect, {st.session_state.user_display_name}!"
-                st.session_state.messages.append({"role": "assistant", "content": response})
-            
-            else:
-                # They probably just said their preferred name directly
-                corrected_name = extract_name_from_input(prompt)
-                if corrected_name:
-                    st.session_state.user_display_name = corrected_name.split()[0]  # Take first word
-                else:
-                    # Use their response as-is (cleaned up)
-                    st.session_state.user_display_name = prompt.strip().title()
-                
-                st.session_state.asking_for_name_confirmation = False
-                st.session_state.showing_email_buttons = True
-                
-                response = f"Perfect, {st.session_state.user_display_name}!"
                 st.session_state.messages.append({"role": "assistant", "content": response})
         
         elif st.session_state.asking_for_email:
