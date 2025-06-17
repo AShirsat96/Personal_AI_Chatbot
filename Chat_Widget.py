@@ -881,7 +881,10 @@ def main():
             display: flex;
             align-items: center;
             gap: 15px;
+            position: relative;
         }
+        
+
         
         .chat-avatar {
             width: 50px;
@@ -1026,6 +1029,40 @@ def main():
             }
         }
     </style>
+    
+    <script>
+        // Add confirmation dialog when user tries to leave the page
+        window.addEventListener('beforeunload', function (e) {
+            // Check if we're in an active chat session
+            const hasMessages = document.querySelectorAll('.assistant-message, .user-message').length > 2;
+            
+            if (hasMessages) {
+                e.preventDefault();
+                e.returnValue = 'Are you sure you want to end this session? This will clear all conversation history.';
+                return 'Are you sure you want to end this session? This will clear all conversation history.';
+            }
+        });
+        
+        // Alternative approach - detect Streamlit specific close attempts
+        document.addEventListener('DOMContentLoaded', function() {
+            // Monitor for navigation attempts
+            let isConfirmed = false;
+            
+            // Override default close behavior if possible
+            const originalOnBeforeUnload = window.onbeforeunload;
+            window.onbeforeunload = function(e) {
+                if (!isConfirmed) {
+                    const confirmMessage = 'Are you sure you want to end this session? This will clear all conversation history.';
+                    e.returnValue = confirmMessage;
+                    return confirmMessage;
+                }
+                if (originalOnBeforeUnload) {
+                    return originalOnBeforeUnload(e);
+                }
+            };
+        });
+    </script>
+    </style>
     """, unsafe_allow_html=True)
     
     # Initialize
@@ -1084,6 +1121,12 @@ def main():
         </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Add close button positioned outside but looking like it's in the header
+    col1, col2, col3 = st.columns([8, 1, 1])
+    with col2:
+        if st.button("✕", key="close_btn", help="End Session", use_container_width=True):
+            show_end_session_dialog()
     
     # Messages
     st.markdown('<div class="message-container">', unsafe_allow_html=True)
