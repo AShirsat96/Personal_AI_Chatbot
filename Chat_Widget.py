@@ -838,7 +838,7 @@ def main():
         layout="centered"
     )
     
-    # Enhanced CSS with COMPLETE close button removal
+    # Enhanced CSS with COMPLETE close button removal including iframe/embed elements
     st.markdown("""
     <style>
         /* Complete app reset and layout */
@@ -862,12 +862,17 @@ def main():
             max-width: 100% !important;
         }
         
-        /* AGGRESSIVE close button hiding */
+        /* AGGRESSIVE close button hiding - targeting iframe/embed elements */
         .stDeployButton {display: none !important;}
         #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important;}
         
-        /* Hide any close buttons with multiple selectors */
+        /* Hide parent container close buttons (iframe level) */
+        html, body {
+            overflow: hidden !important;
+        }
+        
+        /* Target all possible close button variations */
         button[title="Close"],
         button[aria-label="Close"],
         button[data-testid="close-button"],
@@ -878,11 +883,26 @@ def main():
         [id*="close"],
         button:contains("✕"),
         button:contains("×"),
-        button:contains("X") {
+        button:contains("X"),
+        /* Streamlit Cloud specific selectors */
+        .st-emotion-cache-*[title="Close"],
+        [data-baseweb="button"][aria-label="Close"],
+        [data-baseweb="button"]:contains("×"),
+        /* Additional iframe/embed selectors */
+        .streamlit-container .close,
+        .streamlit-app .close,
+        iframe + .close,
+        .embed-close,
+        .modal-close {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
             pointer-events: none !important;
+            position: absolute !important;
+            left: -9999px !important;
+            top: -9999px !important;
+            width: 0 !important;
+            height: 0 !important;
         }
         
         /* Hide any standalone X symbols */
@@ -906,6 +926,14 @@ def main():
         [role="button"]:contains("×"),
         [tabindex]:contains("✕"),
         [tabindex]:contains("×") {
+            display: none !important;
+        }
+        
+        /* Force hide top-right corner elements */
+        .stApp > div:first-child > div:first-child > div:last-child,
+        .stApp > header,
+        .stApp div[data-testid="stHeader"],
+        div[data-testid="stToolbar"] {
             display: none !important;
         }
         
@@ -1076,11 +1104,11 @@ def main():
     </style>
     
     <script>
-        // Ultra-aggressive close button removal script
+        // Ultra-aggressive close button removal script targeting iframe/embed scenarios
         (function() {
             function removeAllCloseElements() {
                 // Remove buttons with close-related content
-                const buttons = document.querySelectorAll('button');
+                const buttons = document.querySelectorAll('button, [role="button"], [tabindex], div[onclick], span[onclick]');
                 buttons.forEach(button => {
                     const text = button.textContent.trim();
                     const title = button.getAttribute('title');
@@ -1089,14 +1117,22 @@ def main():
                     if (text === '✕' || text === '×' || text === 'X' || text === 'x' ||
                         title === 'Close' || ariaLabel === 'Close' ||
                         button.dataset.testid === 'close-button' ||
-                        button.dataset.testid === 'closeButton') {
+                        button.dataset.testid === 'closeButton' ||
+                        button.classList.contains('close') ||
+                        button.id.includes('close')) {
                         button.style.display = 'none';
+                        button.style.visibility = 'hidden';
+                        button.style.opacity = '0';
+                        button.style.pointerEvents = 'none';
+                        button.style.position = 'absolute';
+                        button.style.left = '-9999px';
+                        button.style.top = '-9999px';
                         button.remove();
                     }
                 });
                 
                 // Remove any divs that only contain close symbols
-                const divs = document.querySelectorAll('div, span');
+                const divs = document.querySelectorAll('div, span, i, svg');
                 divs.forEach(element => {
                     const text = element.textContent.trim();
                     if ((text === '✕' || text === '×' || text === 'X') && 
@@ -1109,7 +1145,7 @@ def main():
                 });
                 
                 // Remove any elements with close-related classes or IDs
-                const closeElements = document.querySelectorAll('[class*="close"], [id*="close"]');
+                const closeElements = document.querySelectorAll('[class*="close"], [id*="close"], .st-emotion-cache-*[title="Close"]');
                 closeElements.forEach(element => {
                     if (!element.classList.contains('message-bubble') && 
                         !element.classList.contains('user-bubble')) {
@@ -1117,38 +1153,81 @@ def main():
                         element.remove();
                     }
                 });
+                
+                // Target iframe parent elements (if this app is embedded)
+                try {
+                    if (window.parent !== window) {
+                        // We're in an iframe, try to access parent
+                        const parentDoc = window.parent.document;
+                        const parentCloseButtons = parentDoc.querySelectorAll('button, [role="button"]');
+                        parentCloseButtons.forEach(btn => {
+                            const text = btn.textContent.trim();
+                            if (text === '✕' || text === '×' || text === 'X') {
+                                btn.style.display = 'none';
+                            }
+                        });
+                    }
+                } catch (e) {
+                    // Cross-origin restriction, can't access parent
+                    console.log('Cannot access parent frame (cross-origin)');
+                }
+                
+                // Hide top-right corner elements specifically
+                const topRightElements = document.querySelectorAll('.stApp > div:first-child > div:last-child, [data-testid="stHeader"], [data-testid="stToolbar"]');
+                topRightElements.forEach(el => {
+                    el.style.display = 'none';
+                });
             }
             
-            // Run immediately when DOM is ready
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', removeAllCloseElements);
-            } else {
+            // Enhanced startup sequence
+            function initCloseButtonRemoval() {
                 removeAllCloseElements();
+                
+                // Set up mutation observer with enhanced options
+                const observer = new MutationObserver(function(mutations) {
+                    let shouldClean = false;
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                            shouldClean = true;
+                        }
+                        if (mutation.type === 'attributes') {
+                            const target = mutation.target;
+                            if (target.textContent && (target.textContent.includes('✕') || target.textContent.includes('×'))) {
+                                shouldClean = true;
+                            }
+                        }
+                    });
+                    if (shouldClean) {
+                        setTimeout(removeAllCloseElements, 10);
+                    }
+                });
+                
+                observer.observe(document.body, { 
+                    childList: true, 
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['style', 'class', 'title', 'aria-label', 'data-testid'],
+                    characterData: true
+                });
+                
+                // More aggressive periodic cleanup
+                setInterval(removeAllCloseElements, 1000); // Every 1 second
             }
             
-            // Run again after a delay for dynamically loaded content
+            // Multiple initialization triggers
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initCloseButtonRemoval);
+            } else {
+                initCloseButtonRemoval();
+            }
+            
+            // Additional safety triggers
+            window.addEventListener('load', removeAllCloseElements);
+            setTimeout(removeAllCloseElements, 100);
             setTimeout(removeAllCloseElements, 500);
             setTimeout(removeAllCloseElements, 1000);
             setTimeout(removeAllCloseElements, 2000);
-            
-            // Set up mutation observer to catch any new close buttons
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'childList') {
-                        removeAllCloseElements();
-                    }
-                });
-            });
-            
-            observer.observe(document.body, { 
-                childList: true, 
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['style', 'class', 'title', 'aria-label']
-            });
-            
-            // Periodic cleanup every 3 seconds
-            setInterval(removeAllCloseElements, 3000);
+            setTimeout(removeAllCloseElements, 5000);
         })();
     </script>
     """, unsafe_allow_html=True)
