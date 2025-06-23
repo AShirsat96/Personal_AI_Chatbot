@@ -838,9 +838,10 @@ def main():
         layout="centered"
     )
     
-    # Enhanced CSS with improved mobile responsiveness - Close button completely removed
+    # Enhanced CSS with COMPLETE close button removal
     st.markdown("""
     <style>
+        /* Complete app reset and layout */
         .stApp {
             margin: 0 !important;
             padding: 0 !important;
@@ -848,9 +849,11 @@ def main():
             min-height: 100vh;
         }
         
+        /* Hide ALL Streamlit default elements */
         .stApp > header {
             visibility: hidden !important;
             height: 0 !important;
+            display: none !important;
         }
         
         .block-container {
@@ -859,30 +862,54 @@ def main():
             max-width: 100% !important;
         }
         
+        /* AGGRESSIVE close button hiding */
         .stDeployButton {display: none !important;}
         #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important;}
         
-        /* Hide any close buttons that might appear */
-        button[title="Close"] {display: none !important;}
-        button[aria-label="Close"] {display: none !important;}
-        .stButton button:contains("✕") {display: none !important;}
-        .stButton button:contains("×") {display: none !important;}
+        /* Hide any close buttons with multiple selectors */
+        button[title="Close"],
+        button[aria-label="Close"],
+        button[data-testid="close-button"],
+        button[data-testid="closeButton"],
+        .close-button,
+        .close-btn,
+        [class*="close"],
+        [id*="close"],
+        button:contains("✕"),
+        button:contains("×"),
+        button:contains("X") {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
         
-        /* More aggressive hiding of any X buttons */
-        button:contains("✕") {display: none !important;}
-        button:contains("×") {display: none !important;}
-        [data-testid="close-button"] {display: none !important;}
-        [data-testid="closeButton"] {display: none !important;}
+        /* Hide any standalone X symbols */
+        div:contains("✕"):not(.message-bubble):not(.user-bubble),
+        div:contains("×"):not(.message-bubble):not(.user-bubble),
+        span:contains("✕"),
+        span:contains("×") {
+            display: none !important;
+        }
         
-        /* Hide any standalone X elements */
-        div:contains("✕"):not(.message-bubble):not(.user-bubble) {display: none !important;}
-        div:contains("×"):not(.message-bubble):not(.user-bubble) {display: none !important;}
+        /* Remove any containers that might hold close buttons */
+        .element-container:has(button:contains("✕")),
+        .element-container:has(button:contains("×")),
+        .element-container:has(button[title="Close"]),
+        .element-container:has(button[aria-label="Close"]) {
+            display: none !important;
+        }
         
-        /* Hide any elements that might be creating the X */
-        .element-container:has(button:contains("✕")) {display: none !important;}
-        .element-container:has(button:contains("×")) {display: none !important;}
+        /* Additional safety net for any missed close elements */
+        [role="button"]:contains("✕"),
+        [role="button"]:contains("×"),
+        [tabindex]:contains("✕"),
+        [tabindex]:contains("×") {
+            display: none !important;
+        }
         
+        /* Chat container styling */
         .chat-container {
             background: white;
             border-radius: 20px;
@@ -1049,45 +1076,80 @@ def main():
     </style>
     
     <script>
-        // Aggressively remove any close buttons after page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            function removeCloseButtons() {
-                // Remove any buttons with X symbols
-                const xButtons = document.querySelectorAll('button');
-                xButtons.forEach(button => {
+        // Ultra-aggressive close button removal script
+        (function() {
+            function removeAllCloseElements() {
+                // Remove buttons with close-related content
+                const buttons = document.querySelectorAll('button');
+                buttons.forEach(button => {
                     const text = button.textContent.trim();
-                    if (text === '✕' || text === '×' || text === 'X' || text === 'x') {
+                    const title = button.getAttribute('title');
+                    const ariaLabel = button.getAttribute('aria-label');
+                    
+                    if (text === '✕' || text === '×' || text === 'X' || text === 'x' ||
+                        title === 'Close' || ariaLabel === 'Close' ||
+                        button.dataset.testid === 'close-button' ||
+                        button.dataset.testid === 'closeButton') {
                         button.style.display = 'none';
                         button.remove();
                     }
                 });
                 
-                // Remove any divs that only contain X
-                const xDivs = document.querySelectorAll('div');
-                xDivs.forEach(div => {
-                    const text = div.textContent.trim();
-                    if ((text === '✕' || text === '×' || text === 'X') && div.children.length === 0) {
-                        div.style.display = 'none';
-                        div.remove();
+                // Remove any divs that only contain close symbols
+                const divs = document.querySelectorAll('div, span');
+                divs.forEach(element => {
+                    const text = element.textContent.trim();
+                    if ((text === '✕' || text === '×' || text === 'X') && 
+                        element.children.length === 0 && 
+                        !element.classList.contains('message-bubble') && 
+                        !element.classList.contains('user-bubble')) {
+                        element.style.display = 'none';
+                        element.remove();
+                    }
+                });
+                
+                // Remove any elements with close-related classes or IDs
+                const closeElements = document.querySelectorAll('[class*="close"], [id*="close"]');
+                closeElements.forEach(element => {
+                    if (!element.classList.contains('message-bubble') && 
+                        !element.classList.contains('user-bubble')) {
+                        element.style.display = 'none';
+                        element.remove();
                     }
                 });
             }
             
-            // Run immediately
-            removeCloseButtons();
+            // Run immediately when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', removeAllCloseElements);
+            } else {
+                removeAllCloseElements();
+            }
             
-            // Run again after a short delay in case elements load later
-            setTimeout(removeCloseButtons, 1000);
+            // Run again after a delay for dynamically loaded content
+            setTimeout(removeAllCloseElements, 500);
+            setTimeout(removeAllCloseElements, 1000);
+            setTimeout(removeAllCloseElements, 2000);
             
-            // Set up a mutation observer to catch any dynamically added close buttons
-            const observer = new MutationObserver(removeCloseButtons);
+            // Set up mutation observer to catch any new close buttons
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList') {
+                        removeAllCloseElements();
+                    }
+                });
+            });
+            
             observer.observe(document.body, { 
                 childList: true, 
                 subtree: true,
                 attributes: true,
-                attributeFilter: ['style', 'class']
+                attributeFilter: ['style', 'class', 'title', 'aria-label']
             });
-        });
+            
+            // Periodic cleanup every 3 seconds
+            setInterval(removeAllCloseElements, 3000);
+        })();
     </script>
     """, unsafe_allow_html=True)
     
@@ -1131,10 +1193,10 @@ def main():
         ]
         st.session_state.asking_for_name = True
     
-    # Chat UI - Header section only (no close button)
+    # Chat UI - Header section without ANY close functionality
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    # Header - Clean without any buttons
+    # Clean header with no buttons whatsoever
     shared_avatar = get_shared_avatar()
     avatar_src = shared_avatar if shared_avatar else "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTIgMTJDMTQuNzYxNCAxMiAxNyA5Ljc2MTQyIDE3IDdDMTcgNC4yMzg1OCAxNC43NjE0IDIgMTIgMkM5LjIzODU4IDIgNyA0LjIzODU4IDcgN0M3IDkuNzYxNDIgOS4yMzg1OCAxMiAxMiAxMlpNMTIgMTRDOC42ODYyOSAxNCA2IDE2LjIzODYgNiAxOUg2QzYgMjEuNzYxNCA4LjIzODU4IDI0IDExIDI0SDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
     
