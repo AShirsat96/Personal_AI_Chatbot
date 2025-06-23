@@ -838,7 +838,7 @@ def main():
         layout="centered"
     )
     
-    # Enhanced CSS with improved mobile responsiveness
+    # Enhanced CSS with improved mobile responsiveness - Close button completely removed
     st.markdown("""
     <style>
         .stApp {
@@ -863,6 +863,26 @@ def main():
         #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important;}
         
+        /* Hide any close buttons that might appear */
+        button[title="Close"] {display: none !important;}
+        button[aria-label="Close"] {display: none !important;}
+        .stButton button:contains("✕") {display: none !important;}
+        .stButton button:contains("×") {display: none !important;}
+        
+        /* More aggressive hiding of any X buttons */
+        button:contains("✕") {display: none !important;}
+        button:contains("×") {display: none !important;}
+        [data-testid="close-button"] {display: none !important;}
+        [data-testid="closeButton"] {display: none !important;}
+        
+        /* Hide any standalone X elements */
+        div:contains("✕"):not(.message-bubble):not(.user-bubble) {display: none !important;}
+        div:contains("×"):not(.message-bubble):not(.user-bubble) {display: none !important;}
+        
+        /* Hide any elements that might be creating the X */
+        .element-container:has(button:contains("✕")) {display: none !important;}
+        .element-container:has(button:contains("×")) {display: none !important;}
+        
         .chat-container {
             background: white;
             border-radius: 20px;
@@ -883,8 +903,6 @@ def main():
             gap: 15px;
             position: relative;
         }
-        
-
         
         .chat-avatar {
             width: 50px;
@@ -1031,38 +1049,46 @@ def main():
     </style>
     
     <script>
-        // Add confirmation dialog when user tries to leave the page
-        window.addEventListener('beforeunload', function (e) {
-            // Check if we're in an active chat session
-            const hasMessages = document.querySelectorAll('.assistant-message, .user-message').length > 2;
-            
-            if (hasMessages) {
-                e.preventDefault();
-                e.returnValue = 'Are you sure you want to end this session? This will clear all conversation history.';
-                return 'Are you sure you want to end this session? This will clear all conversation history.';
-            }
-        });
-        
-        // Alternative approach - detect Streamlit specific close attempts
+        // Aggressively remove any close buttons after page loads
         document.addEventListener('DOMContentLoaded', function() {
-            // Monitor for navigation attempts
-            let isConfirmed = false;
+            function removeCloseButtons() {
+                // Remove any buttons with X symbols
+                const xButtons = document.querySelectorAll('button');
+                xButtons.forEach(button => {
+                    const text = button.textContent.trim();
+                    if (text === '✕' || text === '×' || text === 'X' || text === 'x') {
+                        button.style.display = 'none';
+                        button.remove();
+                    }
+                });
+                
+                // Remove any divs that only contain X
+                const xDivs = document.querySelectorAll('div');
+                xDivs.forEach(div => {
+                    const text = div.textContent.trim();
+                    if ((text === '✕' || text === '×' || text === 'X') && div.children.length === 0) {
+                        div.style.display = 'none';
+                        div.remove();
+                    }
+                });
+            }
             
-            // Override default close behavior if possible
-            const originalOnBeforeUnload = window.onbeforeunload;
-            window.onbeforeunload = function(e) {
-                if (!isConfirmed) {
-                    const confirmMessage = 'Are you sure you want to end this session? This will clear all conversation history.';
-                    e.returnValue = confirmMessage;
-                    return confirmMessage;
-                }
-                if (originalOnBeforeUnload) {
-                    return originalOnBeforeUnload(e);
-                }
-            };
+            // Run immediately
+            removeCloseButtons();
+            
+            // Run again after a short delay in case elements load later
+            setTimeout(removeCloseButtons, 1000);
+            
+            // Set up a mutation observer to catch any dynamically added close buttons
+            const observer = new MutationObserver(removeCloseButtons);
+            observer.observe(document.body, { 
+                childList: true, 
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
         });
     </script>
-    </style>
     """, unsafe_allow_html=True)
     
     # Initialize
@@ -1105,10 +1131,10 @@ def main():
         ]
         st.session_state.asking_for_name = True
     
-    # Chat UI
+    # Chat UI - Header section only (no close button)
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    # Enhanced Header
+    # Header - Clean without any buttons
     shared_avatar = get_shared_avatar()
     avatar_src = shared_avatar if shared_avatar else "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTIgMTJDMTQuNzYxNCAxMiAxNyA5Ljc2MTQyIDE3IDdDMTcgNC4yMzg1OCAxNC43NjE0IDIgMTIgMkM5LjIzODU4IDIgNyA0LjIzODU4IDcgN0M3IDkuNzYxNDIgOS4yMzg1OCAxMiAxMiAxMlpNMTIgMTRDOC42ODYyOSAxNCA2IDE2LjIzODYgNiAxOUg2QzYgMjEuNzYxNCA4LjIzODU4IDI0IDExIDI0SDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
     
@@ -1121,12 +1147,6 @@ def main():
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Add close button positioned outside but looking like it's in the header
-    col1, col2, col3 = st.columns([8, 1, 1])
-    with col2:
-        if st.button("✕", key="close_btn", help="End Session", use_container_width=True):
-            show_end_session_dialog()
     
     # Messages
     st.markdown('<div class="message-container">', unsafe_allow_html=True)
@@ -1148,7 +1168,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     
-    # **NEW: Button-based email collection**
+    # **Button-based email collection**
     if st.session_state.showing_email_buttons and not st.session_state.email_choice_made:
         st.markdown("""
         <div class="email-buttons">
