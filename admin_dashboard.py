@@ -1102,7 +1102,10 @@ def conversation_threads_tab():
         # Sort by most recent first
         filtered_df = threads_df.sort_values('start_time', ascending=False)
         
-        for _, thread in filtered_df.iterrows():
+        for idx, (_, thread) in enumerate(filtered_df.iterrows()):
+            # Create unique key using index to avoid duplicates
+            unique_key = f"thread_{idx}_{thread['session_id']}"
+            
             with st.expander(
                 f"💬 {thread['user_name']} • {thread['start_time'].strftime('%Y-%m-%d %H:%M')} • "
                 f"{thread['total_messages']} messages • {thread['duration_minutes']}m"
@@ -1115,7 +1118,7 @@ def conversation_threads_tab():
                     st.write(f"**Duration:** {thread['duration_minutes']} minutes")
                 
                 with col2:
-                    if st.button(f"👁️ View Full Conversation", key=f"view_{thread['session_id']}"):
+                    if st.button(f"👁️ View Full Conversation", key=f"view_{unique_key}"):
                         st.session_state.selected_conversation = thread['session_id']
                 
                 # Show conversation preview (first and last message)
