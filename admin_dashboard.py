@@ -882,63 +882,8 @@ def display_complete_conversation(conversation_thread: dict):
             </div>
             """, unsafe_allow_html=True)
 
-def enhanced_conversation_analysis():
-    """Enhanced conversation analysis with more detailed insights"""
-    conversation_data = load_conversation_data_shared()
-    
-    if conversation_data.empty:
-        st.info("No conversation data available yet.")
-        return
-    
-    # Convert timestamp
-    conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
-    
-    # Add derived columns for analysis
-    conversation_data['hour'] = conversation_data['timestamp'].dt.hour
-    conversation_data['day_of_week'] = conversation_data['timestamp'].dt.day_name()
-    conversation_data['date'] = conversation_data['timestamp'].dt.date
-    
-    # Advanced metrics
-    st.subheader("📊 Advanced Conversation Analytics")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        total_sessions = conversation_data['session_id'].nunique()
-        st.metric("Unique Sessions", total_sessions)
-    
-    with col2:
-        avg_messages_per_session = conversation_data.groupby('session_id').size().mean()
-        st.metric("Avg Messages/Session", f"{avg_messages_per_session:.1f}")
-    
-    with col3:
-        avg_response_length = conversation_data['response_length'].mean()
-        st.metric("Avg Response Length", f"{avg_response_length:.0f} chars")
-    
-    with col4:
-        total_unique_users = conversation_data['user_email'].nunique()
-        st.metric("Unique Users", total_unique_users)
-    
-    # Time-based analysis
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("🕐 Activity by Hour")
-        hourly_activity = conversation_data['hour'].value_counts().sort_index()
-        st.bar_chart(hourly_activity)
-    
-    with col2:
-        st.subheader("📅 Activity by Day")
-        daily_activity = conversation_data['day_of_week'].value_counts()
-        st.bar_chart(daily_activity)
-    
-    # Intent analysis over time
-    st.subheader("🎯 Intent Trends Over Time")
-    intent_over_time = conversation_data.groupby(['date', 'detected_intent']).size().unstack(fill_value=0)
-    st.line_chart(intent_over_time)
-
 def conversation_search_and_filter():
-    """Simple conversation list with delete functionality"""
+    """Simple conversation list with delete functionality - NO FILTERS"""
     st.subheader("💬 All Conversations")
     
     conversation_data = load_conversation_data_shared()
@@ -1110,7 +1055,7 @@ def conversation_export_options():
         )
 
 def conversation_threads_tab():
-    """Complete conversation threads management tab - NO DATE FILTER"""
+    """Complete conversation threads management tab - NO FILTERS"""
     st.header("💬 Complete Conversation Threads")
     
     # Load conversation threads
@@ -1150,35 +1095,12 @@ def conversation_threads_tab():
         total_messages = threads_df['total_messages'].sum()
         st.metric("Total Messages", total_messages)
     
-    # Filters - REMOVED DATE FILTER
-    st.subheader("🔍 Filter Conversations")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # User filter
-        unique_users = ['All'] + list(threads_df['user_name'].unique())
-        selected_user = st.selectbox("Filter by User", unique_users, key="thread_user_filter")
-    
-    with col2:
-        # Duration filter
-        min_duration = st.number_input("Min Duration (minutes)", min_value=0.0, value=0.0, key="thread_duration_filter")
-    
-    # Apply filters
-    filtered_df = threads_df.copy()
-    
-    if selected_user != 'All':
-        filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
-    
-    if min_duration > 0:
-        filtered_df = filtered_df[filtered_df['duration_minutes'] >= min_duration]
-    
-    st.write(f"**Showing {len(filtered_df)} conversations**")
+    st.write(f"**Showing all {len(threads_df)} conversations**")
     
     # Conversation list
-    if not filtered_df.empty:
+    if not threads_df.empty:
         # Sort by most recent first
-        filtered_df = filtered_df.sort_values('start_time', ascending=False)
+        filtered_df = threads_df.sort_values('start_time', ascending=False)
         
         for _, thread in filtered_df.iterrows():
             with st.expander(
@@ -1266,18 +1188,70 @@ def export_conversation_threads():
             )
 
 def enhanced_analytics_tab_v2():
-    """Enhanced analytics with all new features - NO LIVE MONITOR"""
+    """Enhanced analytics with simplified features - NO FILTERS"""
     st.header("📊 Enhanced Conversation Analytics")
     
     # Tabs within analytics - REMOVED LIVE MONITOR
     subtab1, subtab2, subtab3 = st.tabs([
-        "📈 Advanced Analytics", 
-        "🔍 Search & Filter", 
+        "📈 Analytics", 
+        "🔍 Conversations", 
         "📥 Export Options"
     ])
     
     with subtab1:
-        enhanced_conversation_analysis()
+        # Simple analytics without complex filtering
+        conversation_data = load_conversation_data_shared()
+        
+        if conversation_data.empty:
+            st.info("No conversation data available yet.")
+            return
+        
+        # Convert timestamp
+        conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
+        
+        # Add derived columns for analysis
+        conversation_data['hour'] = conversation_data['timestamp'].dt.hour
+        conversation_data['day_of_week'] = conversation_data['timestamp'].dt.day_name()
+        conversation_data['date'] = conversation_data['timestamp'].dt.date
+        
+        # Basic metrics
+        st.subheader("📊 Basic Analytics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total_sessions = conversation_data['session_id'].nunique()
+            st.metric("Unique Sessions", total_sessions)
+        
+        with col2:
+            avg_messages_per_session = conversation_data.groupby('session_id').size().mean()
+            st.metric("Avg Messages/Session", f"{avg_messages_per_session:.1f}")
+        
+        with col3:
+            avg_response_length = conversation_data['response_length'].mean()
+            st.metric("Avg Response Length", f"{avg_response_length:.0f} chars")
+        
+        with col4:
+            total_unique_users = conversation_data['user_email'].nunique()
+            st.metric("Unique Users", total_unique_users)
+        
+        # Time-based analysis
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("🕐 Activity by Hour")
+            hourly_activity = conversation_data['hour'].value_counts().sort_index()
+            st.bar_chart(hourly_activity)
+        
+        with col2:
+            st.subheader("📅 Activity by Day")
+            daily_activity = conversation_data['day_of_week'].value_counts()
+            st.bar_chart(daily_activity)
+        
+        # Intent distribution
+        st.subheader("🎯 Intent Distribution")
+        intent_counts = conversation_data['detected_intent'].value_counts()
+        st.bar_chart(intent_counts)
     
     with subtab2:
         conversation_search_and_filter()
@@ -1355,7 +1329,7 @@ def scrape_website(url: str, max_pages: int):
             st.error("Could not retrieve content. Please verify the URL and try again.")
 
 def main():
-    """Admin Dashboard - Complete management interface - NO LIVE MONITORING"""
+    """Admin Dashboard - Simplified interface focused on conversations"""
     st.set_page_config(
         page_title="Aniket Shirsat - Admin Dashboard",
         page_icon="⚙️",
@@ -1451,7 +1425,7 @@ def main():
         "💬 Complete Conversations"
     ])
     
-    # Tab 1: Enhanced Analytics Dashboard
+    # Tab 1: Simplified Analytics Dashboard
     with tab1:
         enhanced_analytics_tab_v2()
             
