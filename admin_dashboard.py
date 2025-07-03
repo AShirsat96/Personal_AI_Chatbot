@@ -883,7 +883,7 @@ def display_complete_conversation(conversation_thread: dict):
             """, unsafe_allow_html=True)
 
 def conversation_search_and_filter():
-    """Simple conversation list with delete functionality - NO FILTERS"""
+    """Simple conversation list with delete functionality - ALL FILTERS REMOVED"""
     st.subheader("💬 All Conversations")
     
     conversation_data = load_conversation_data_shared()
@@ -900,7 +900,7 @@ def conversation_search_and_filter():
         st.warning("No valid conversation data found.")
         return
     
-    # Simple search box only
+    # Simple search box only - NO OTHER FILTERS
     search_term = st.text_input("🔍 Search in conversations", placeholder="Enter keywords to search...", key="conversation_search")
     
     # Apply search filter if provided
@@ -1097,7 +1097,7 @@ def conversation_threads_tab():
     
     st.write(f"**Showing all {len(threads_df)} conversations**")
     
-    # Conversation list
+    # Conversation list - NO FILTERS
     if not threads_df.empty:
         # Sort by most recent first
         filtered_df = threads_df.sort_values('start_time', ascending=False)
@@ -1188,10 +1188,10 @@ def export_conversation_threads():
             )
 
 def enhanced_analytics_tab_v2():
-    """Enhanced analytics with simplified features - NO FILTERS"""
-    st.header("📊 Enhanced Conversation Analytics")
+    """Simplified analytics - NO LIVE MONITORING OR COMPLEX FILTERS"""
+    st.header("📊 Conversation Analytics")
     
-    # Tabs within analytics - REMOVED LIVE MONITOR
+    # Simplified tabs - REMOVED LIVE MONITOR
     subtab1, subtab2, subtab3 = st.tabs([
         "📈 Analytics", 
         "🔍 Conversations", 
@@ -1329,7 +1329,7 @@ def scrape_website(url: str, max_pages: int):
             st.error("Could not retrieve content. Please verify the URL and try again.")
 
 def main():
-    """Admin Dashboard - Simplified interface focused on conversations"""
+    """Admin Dashboard - Simplified interface with all filters removed"""
     st.set_page_config(
         page_title="Aniket Shirsat - Admin Dashboard",
         page_icon="⚙️",
@@ -1591,9 +1591,6 @@ def main():
         with st.expander("⚙️ Advanced Scraping Settings"):
             st.info("Coming soon: Custom selectors, content filters, and scheduling options")
     
-    # Tab 5: System Settings
-    with tab5:
-        st.header("⚙️ System Settings & Configuration")
         
         # Database Connection Status
         st.subheader("🔗 Database Connection Status")
