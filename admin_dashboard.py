@@ -5,7 +5,7 @@ import streamlit as st
 from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import base64
 from io import BytesIO
@@ -53,13 +53,17 @@ class GitHubGistDatabase:
         try:
             response = requests.get(
                 f"https://api.github.com/gists/{self.gist_id}",
-                headers=self.headers
+                headers=self.headers,
+                timeout=10
             )
             
             if response.status_code == 200:
                 gist_data = response.json()
-                content = gist_data["files"]["chatbot_data.json"]["content"]
-                return json.loads(content)
+                if "chatbot_data.json" in gist_data["files"]:
+                    content = gist_data["files"]["chatbot_data.json"]["content"]
+                    return json.loads(content)
+                else:
+                    return self._get_default_data()
             else:
                 return self._get_default_data()
                 
@@ -84,7 +88,8 @@ class GitHubGistDatabase:
             response = requests.patch(
                 f"https://api.github.com/gists/{self.gist_id}",
                 headers=self.headers,
-                json=payload
+                json=payload,
+                timeout=10
             )
             
             return response.status_code == 200
@@ -98,7 +103,7 @@ class GitHubGistDatabase:
         return {
             "user_interactions": [],
             "conversations": [],
-            "conversation_threads": [],  # NEW: Complete conversation threads
+            "conversation_threads": [],
             "resume_content": None,
             "avatar_data": None,
             "app_settings": {},
@@ -175,7 +180,6 @@ class GitHubGistDatabase:
                 'response_length', 'message_length'
             ])
     
-    # NEW: Conversation thread methods
     def get_conversation_threads(self) -> pd.DataFrame:
         """Get all complete conversation threads"""
         try:
@@ -183,7 +187,6 @@ class GitHubGistDatabase:
             threads = data.get("conversation_threads", [])
             
             if threads:
-                # Create summary dataframe
                 thread_summaries = []
                 for thread in threads:
                     summary = {
@@ -240,7 +243,6 @@ class GitHubGistDatabase:
         try:
             data = self._load_gist_data()
             
-            # Create conversation thread entry
             conversation_thread = {
                 "session_id": session_id,
                 "user_name": user_name,
@@ -248,11 +250,10 @@ class GitHubGistDatabase:
                 "start_time": conversation_messages[0]['timestamp'] if conversation_messages else datetime.now().isoformat(),
                 "end_time": conversation_messages[-1]['timestamp'] if conversation_messages else datetime.now().isoformat(),
                 "total_messages": len(conversation_messages),
-                "conversation_flow": conversation_messages,  # Complete conversation
+                "conversation_flow": conversation_messages,
                 "saved_at": datetime.now().isoformat()
             }
             
-            # Add to conversation threads
             if "conversation_threads" not in data:
                 data["conversation_threads"] = []
             
@@ -366,7 +367,6 @@ class GitHubGistDatabase:
         
         if self.use_gist:
             try:
-                # Test connection
                 response = requests.get(f"https://api.github.com/gists/{self.gist_id}", headers=self.headers)
                 status["connection_test"] = response.status_code == 200
                 status["last_updated"] = self._load_gist_data().get("last_updated", "Never")
@@ -412,7 +412,6 @@ def load_conversation_data_shared() -> pd.DataFrame:
     db = get_shared_db()
     return db.get_conversations()
 
-# NEW: Conversation thread functions
 def load_conversation_threads_shared() -> pd.DataFrame:
     """Load conversation threads from shared database"""
     db = get_shared_db()
@@ -518,6 +517,35 @@ class ResumeContent:
     file_type: str
     metadata: Dict
     timestamp: datetime
+
+class AniketChatbotAI:
+    """Professional assistant for Aniket Shirsat's portfolio"""
+    
+    def __init__(self, api_key: str):
+        self.client = OpenAI(api_key=api_key)
+
+def get_image_base64(image_file):
+    """Convert uploaded image to base64 string"""
+    try:
+        img = Image.open(image_file)
+        img = img.resize((100, 100), Image.Resampling.LANCZOS)
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        return f"data:image/png;base64,{img_str}"
+    except Exception as e:
+        st.error(f"Error processing avatar image: {str(e)}")
+        return None
+
+def calculate_conversation_duration(start_time: str, end_time: str) -> float:
+    """Calculate conversation duration in minutes"""
+    try:
+        start = pd.to_datetime(start_time)
+        end = pd.to_datetime(end_time)
+        duration = (end - start).total_seconds() / 60
+        return round(duration, 1)
+    except:
+        return 0.0
 
 class SimpleWebsiteScraper:
     """Simplified website scraper using only requests and BeautifulSoup"""
@@ -730,26 +758,6 @@ class ResumeProcessor:
             st.error(f"Error processing resume: {str(e)}")
             return None
 
-def get_image_base64(image_file):
-    """Convert uploaded image to base64 string"""
-    try:
-        img = Image.open(image_file)
-        img = img.resize((100, 100), Image.Resampling.LANCZOS)
-        buffered = BytesIO()
-        img.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        return f"data:image/png;base64,{img_str}"
-    except Exception as e:
-        st.error(f"Error processing avatar image: {str(e)}")
-        return None
-
-class AniketChatbotAI:
-    """Professional assistant for Aniket Shirsat's portfolio"""
-    
-    def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key)
-
-# NEW: Enhanced conversation tracking functions
 def display_complete_conversation(conversation_thread: dict):
     """Display a complete conversation thread in chat format"""
     st.markdown(f"""
@@ -847,16 +855,6 @@ def display_complete_conversation(conversation_thread: dict):
             </div>
             """, unsafe_allow_html=True)
 
-def calculate_conversation_duration(start_time: str, end_time: str) -> float:
-    """Calculate conversation duration in minutes"""
-    try:
-        start = pd.to_datetime(start_time)
-        end = pd.to_datetime(end_time)
-        duration = (end - start).total_seconds() / 60
-        return round(duration, 1)
-    except:
-        return 0.0
-
 def enhanced_conversation_analysis():
     """Enhanced conversation analysis with more detailed insights"""
     conversation_data = load_conversation_data_shared()
@@ -913,7 +911,7 @@ def enhanced_conversation_analysis():
     st.line_chart(intent_over_time)
 
 def conversation_search_and_filter():
-    """Advanced search and filtering for conversations"""
+    """Advanced search and filtering for conversations - FIXED VERSION"""
     st.subheader("🔍 Conversation Search & Filter")
     
     conversation_data = load_conversation_data_shared()
@@ -922,145 +920,202 @@ def conversation_search_and_filter():
         st.info("No conversation data to search.")
         return
     
-    # Convert timestamp
+    # Convert timestamp FIRST and handle any errors
     conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
+    
+    # Drop rows with invalid timestamps
+    conversation_data = conversation_data.dropna(subset=['timestamp'])
+    
+    if conversation_data.empty:
+        st.warning("No valid conversation data found after timestamp parsing.")
+        return
     
     # Filters
     col1, col2, col3 = st.columns(3)
     
     with col1:
         # Intent filter
-        unique_intents = ['All'] + list(conversation_data['detected_intent'].unique())
+        unique_intents = ['All'] + sorted(list(conversation_data['detected_intent'].dropna().unique()))
         selected_intent = st.selectbox("Filter by Intent", unique_intents)
     
     with col2:
-        # Date filter
-        date_range = st.date_input(
-            "Date Range",
-            value=(conversation_data['timestamp'].min().date(), conversation_data['timestamp'].max().date()),
-            min_value=conversation_data['timestamp'].min().date(),
-            max_value=conversation_data['timestamp'].max().date()
-        )
+        # Date filter - FIXED IMPLEMENTATION
+        min_date = conversation_data['timestamp'].min().date()
+        max_date = conversation_data['timestamp'].max().date()
+        
+        # Use separate date inputs with toggle
+        date_filter_enabled = st.checkbox("Enable Date Filter", value=False)
+        
+        if date_filter_enabled:
+            col2a, col2b = st.columns(2)
+            with col2a:
+                start_date = st.date_input(
+                    "From",
+                    value=min_date,
+                    min_value=min_date,
+                    max_value=max_date,
+                    key="filter_start_date"
+                )
+            with col2b:
+                end_date = st.date_input(
+                    "To", 
+                    value=max_date,
+                    min_value=min_date,
+                    max_value=max_date,
+                    key="filter_end_date"
+                )
+            
+            # Validate date range
+            if start_date > end_date:
+                st.error("Start date cannot be after end date!")
+                return
+        else:
+            start_date = min_date
+            end_date = max_date
     
     with col3:
         # User filter
-        unique_users = ['All'] + list(conversation_data['user_name'].dropna().unique())
+        unique_users = ['All'] + sorted(list(conversation_data['user_name'].dropna().unique()))
         selected_user = st.selectbox("Filter by User", unique_users)
     
     # Search box
     search_term = st.text_input("🔍 Search in messages", placeholder="Enter keywords to search...")
     
-    # Apply filters
+    # Apply filters step by step with debugging
     filtered_data = conversation_data.copy()
     
+    # Debug: Show initial count
+    st.write(f"**Initial conversations:** {len(filtered_data)}")
+    
+    # Intent filter
     if selected_intent != 'All':
+        before_count = len(filtered_data)
         filtered_data = filtered_data[filtered_data['detected_intent'] == selected_intent]
+        st.write(f"**After intent filter ({selected_intent}):** {len(filtered_data)} (removed {before_count - len(filtered_data)})")
     
-    if selected_user != 'All':
-        filtered_data = filtered_data[filtered_data['user_name'] == selected_user]
-    
-    if len(date_range) == 2:
-        start_date, end_date = date_range
+    # Date filter - FIXED IMPLEMENTATION
+    if date_filter_enabled:
+        before_count = len(filtered_data)
+        
+        # Convert dates to datetime for comparison
+        start_datetime = pd.Timestamp(start_date)
+        end_datetime = pd.Timestamp(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)  # End of day
+        
         filtered_data = filtered_data[
-            (filtered_data['timestamp'].dt.date >= start_date) & 
-            (filtered_data['timestamp'].dt.date <= end_date)
+            (filtered_data['timestamp'] >= start_datetime) & 
+            (filtered_data['timestamp'] <= end_datetime)
         ]
+        st.write(f"**After date filter ({start_date} to {end_date}):** {len(filtered_data)} (removed {before_count - len(filtered_data)})")
     
+    # User filter
+    if selected_user != 'All':
+        before_count = len(filtered_data)
+        filtered_data = filtered_data[filtered_data['user_name'] == selected_user]
+        st.write(f"**After user filter ({selected_user}):** {len(filtered_data)} (removed {before_count - len(filtered_data)})")
+    
+    # Search term filter
     if search_term:
-        mask = (
+        before_count = len(filtered_data)
+        search_mask = (
             filtered_data['user_message'].str.contains(search_term, case=False, na=False) |
             filtered_data['bot_response'].str.contains(search_term, case=False, na=False)
         )
-        filtered_data = filtered_data[mask]
+        filtered_data = filtered_data[search_mask]
+        st.write(f"**After search filter ('{search_term}'):** {len(filtered_data)} (removed {before_count - len(filtered_data)})")
     
-    # Display results
-    st.write(f"**Found {len(filtered_data)} conversations matching your criteria**")
+    # Final results
+    st.markdown("---")
+    st.write(f"**📊 Final Results: {len(filtered_data)} conversations found**")
     
     if not filtered_data.empty:
-        # Display conversations
-        for _, conv in filtered_data.sort_values('timestamp', ascending=False).head(50).iterrows():
-            with st.expander(f"🕐 {conv['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} - {conv['user_name']} ({conv['detected_intent']})"):
-                st.markdown(f"**👤 User Message:**")
-                st.write(conv['user_message'])
-                st.markdown(f"**🤖 Bot Response:**")
-                st.write(conv['bot_response'])
+        # Add export button for filtered results
+        col1, col2 = st.columns([3, 1])
+        
+        with col2:
+            filtered_csv = filtered_data.to_csv(index=False)
+            st.download_button(
+                label="📥 Export Filtered Results",
+                data=filtered_csv,
+                file_name=f"filtered_conversations_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv"
+            )
+        
+        # Display conversations with improved formatting
+        st.subheader("💬 Conversation Results")
+        
+        # Pagination
+        items_per_page = 10
+        total_pages = max(1, (len(filtered_data) + items_per_page - 1) // items_per_page)
+        
+        if total_pages > 1:
+            page = st.selectbox("Page", range(1, total_pages + 1)) - 1
+        else:
+            page = 0
+        
+        start_idx = page * items_per_page
+        end_idx = min(start_idx + items_per_page, len(filtered_data))
+        
+        page_data = filtered_data.sort_values('timestamp', ascending=False).iloc[start_idx:end_idx]
+        
+        for idx, (_, conv) in enumerate(page_data.iterrows()):
+            # Color coding by intent
+            intent_colors = {
+                'hiring': '#e74c3c',
+                'skills': '#3498db', 
+                'projects': '#f39c12',
+                'education': '#2ecc71',
+                'personal': '#9b59b6',
+                'contact': '#e67e22',
+                'general': '#95a5a6'
+            }
+            intent_color = intent_colors.get(conv['detected_intent'], '#95a5a6')
+            
+            with st.expander(
+                f"🕐 {conv['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} - {conv['user_name']} "
+                f"({conv['detected_intent']}) - Session: {conv['session_id'][:8]}..."
+            ):
+                # Highlight search terms if any
+                user_msg = conv['user_message']
+                bot_msg = conv['bot_response']
                 
-                # Metadata
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.write(f"**Session ID:** {conv['session_id']}")
-                with col2:
-                    st.write(f"**Email:** {conv['user_email']}")
-                with col3:
-                    st.write(f"**Response Length:** {conv['response_length']} chars")
-
-def conversation_export_options():
-    """Enhanced export options for conversation data"""
-    st.subheader("📥 Advanced Export Options")
+                if search_term:
+                    # Simple highlighting (for display purposes)
+                    user_msg = user_msg.replace(search_term, f"**{search_term}**")
+                    bot_msg = bot_msg.replace(search_term, f"**{search_term}**")
+                
+                st.markdown(f"""
+                <div style="border-left: 4px solid {intent_color}; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 0 8px 8px 0;">
+                    <div style="margin-bottom: 10px;">
+                        <strong>👤 User Message:</strong><br>
+                        {user_msg}
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong>🤖 Bot Response:</strong><br>
+                        {bot_msg}
+                    </div>
+                    <div style="font-size: 12px; color: #666; display: flex; justify-content: space-between;">
+                        <span><strong>Email:</strong> {conv['user_email']}</span>
+                        <span><strong>Response Length:</strong> {conv['response_length']} chars</span>
+                        <span><strong>Session:</strong> {conv['session_id']}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Show pagination info
+        if total_pages > 1:
+            st.write(f"Showing {start_idx + 1}-{end_idx} of {len(filtered_data)} conversations (Page {page + 1} of {total_pages})")
     
-    conversation_data = load_conversation_data_shared()
-    
-    if conversation_data.empty:
-        st.info("No conversation data to export.")
-        return
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**📊 Standard Exports**")
+    else:
+        st.info("🔍 No conversations match your filter criteria. Try adjusting your filters.")
         
-        # Full conversation export
-        conv_csv = conversation_data.to_csv(index=False)
-        st.download_button(
-            label="📥 Complete Conversations (CSV)",
-            data=conv_csv,
-            file_name=f"conversations_complete_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            mime="text/csv"
-        )
-        
-        # JSON export for backup
-        conv_json = conversation_data.to_json(orient='records', date_format='iso')
-        st.download_button(
-            label="📥 Complete Conversations (JSON)",
-            data=conv_json,
-            file_name=f"conversations_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
-            mime="application/json"
-        )
-    
-    with col2:
-        st.markdown("**📈 Analytics Exports**")
-        
-        # Intent summary
-        intent_summary = conversation_data.groupby('detected_intent').agg({
-            'user_message': 'count',
-            'response_length': 'mean',
-            'message_length': 'mean'
-        }).round(2)
-        intent_summary.columns = ['Total_Questions', 'Avg_Response_Length', 'Avg_Question_Length']
-        
-        intent_csv = intent_summary.to_csv()
-        st.download_button(
-            label="📊 Intent Analytics (CSV)",
-            data=intent_csv,
-            file_name=f"intent_analytics_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
-        
-        # User engagement summary
-        user_summary = conversation_data.groupby('user_email').agg({
-            'user_message': 'count',
-            'session_id': 'nunique',
-            'detected_intent': lambda x: len(x.unique()),
-            'timestamp': ['min', 'max']
-        }).round(2)
-        
-        user_csv = user_summary.to_csv()
-        st.download_button(
-            label="👥 User Engagement (CSV)",
-            data=user_csv,
-            file_name=f"user_engagement_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
+        # Suggestions for no results
+        st.markdown("""
+        **💡 Try these suggestions:**
+        - Remove or change the date filter
+        - Select 'All' for intent or user filters  
+        - Use broader search terms
+        - Check if there's data in the selected date range
+        """)
 
 def live_conversation_monitor():
     """Real-time conversation monitoring with auto-refresh"""
@@ -1187,6 +1242,74 @@ def live_conversation_monitor():
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+def conversation_export_options():
+    """Enhanced export options for conversation data"""
+    st.subheader("📥 Advanced Export Options")
+    
+    conversation_data = load_conversation_data_shared()
+    
+    if conversation_data.empty:
+        st.info("No conversation data to export.")
+        return
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**📊 Standard Exports**")
+        
+        # Full conversation export
+        conv_csv = conversation_data.to_csv(index=False)
+        st.download_button(
+            label="📥 Complete Conversations (CSV)",
+            data=conv_csv,
+            file_name=f"conversations_complete_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            mime="text/csv"
+        )
+        
+        # JSON export for backup
+        conv_json = conversation_data.to_json(orient='records', date_format='iso')
+        st.download_button(
+            label="📥 Complete Conversations (JSON)",
+            data=conv_json,
+            file_name=f"conversations_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+            mime="application/json"
+        )
+    
+    with col2:
+        st.markdown("**📈 Analytics Exports**")
+        
+        # Intent summary
+        intent_summary = conversation_data.groupby('detected_intent').agg({
+            'user_message': 'count',
+            'response_length': 'mean',
+            'message_length': 'mean'
+        }).round(2)
+        intent_summary.columns = ['Total_Questions', 'Avg_Response_Length', 'Avg_Question_Length']
+        
+        intent_csv = intent_summary.to_csv()
+        st.download_button(
+            label="📊 Intent Analytics (CSV)",
+            data=intent_csv,
+            file_name=f"intent_analytics_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+        
+        # User engagement summary
+        user_summary = conversation_data.groupby('user_email').agg({
+            'user_message': 'count',
+            'session_id': 'nunique',
+            'detected_intent': lambda x: len(x.unique()),
+            'timestamp': ['min', 'max']
+        }).round(2)
+        
+        user_csv = user_summary.to_csv()
+        st.download_button(
+            label="👥 User Engagement (CSV)",
+            data=user_csv,
+            file_name=f"user_engagement_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
 
 def conversation_threads_tab():
     """Complete conversation threads management tab"""
@@ -1360,64 +1483,8 @@ def export_conversation_threads():
                 help="Download conversation summary statistics"
             )
 
-# Enhanced analytics functions
-def enhanced_analytics_tab():
-    """Enhanced analytics tab with live conversation data"""
-    st.header("📊 Live Analytics & Conversation Insights")
-    
-    # Load both user data and conversation data
-    user_data = load_user_data_shared()
-    conversation_data = load_conversation_data_shared()
-    
-    # Auto-refresh option
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        auto_refresh = st.checkbox("🔄 Auto-refresh (30s)", value=False)
-        if auto_refresh:
-            time.sleep(30)
-            st.rerun()
-    
-    with col2:
-        if st.button("🔄 Manual Refresh", type="primary"):
-            st.rerun()
-    
-    # Live conversation stream
-    st.subheader("💬 Live Conversation Stream")
-    
-    if not conversation_data.empty:
-        # Show last 20 conversations in real-time format
-        recent_conversations = conversation_data.sort_values('timestamp', ascending=False).head(20)
-        
-        for _, conv in recent_conversations.iterrows():
-            timestamp = pd.to_datetime(conv['timestamp']).strftime('%H:%M:%S')
-            
-            # Color code by intent
-            intent_colors = {
-                'hiring': '#28a745',
-                'skills': '#007bff', 
-                'projects': '#ffc107',
-                'education': '#17a2b8',
-                'general': '#6c757d'
-            }
-            color = intent_colors.get(conv['detected_intent'], '#6c757d')
-            
-            st.markdown(f"""
-            <div style="border-left: 4px solid {color}; padding: 10px; margin: 5px 0; background: #f8f9fa;">
-                <strong>{timestamp}</strong> - {conv['user_name']} 
-                <span style="color: {color}; font-weight: bold;">({conv['detected_intent']})</span><br>
-                <strong>Q:</strong> {conv['user_message'][:100]}{'...' if len(conv['user_message']) > 100 else ''}<br>
-                <strong>A:</strong> {conv['bot_response'][:150]}{'...' if len(conv['bot_response']) > 150 else ''}
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.info("🔍 Waiting for conversations to appear...")
-        st.markdown("**Test the connection:**")
-        st.markdown("1. Open your chatbot widget")
-        st.markdown("2. Have a conversation")
-        st.markdown("3. Return here to see it appear in real-time!")
-
 def enhanced_analytics_tab_v2():
-    """Enhanced analytics tab with all new features"""
+    """Enhanced analytics with all new features"""
     st.header("📊 Enhanced Conversation Analytics")
     
     # Tabs within analytics
@@ -1494,7 +1561,76 @@ def live_monitoring_tab():
         st.rerun()
     
     # Enhanced live monitoring
-    enhanced_analytics_tab()
+    enhanced_conversation_analysis()
+
+def process_resume_file(uploaded_file):
+    """Process uploaded resume file"""
+    with st.spinner("Processing resume..."):
+        processor = ResumeProcessor()
+        resume_content = processor.process_resume(uploaded_file)
+        
+        if resume_content:
+            # Save to shared database
+            success = save_resume_shared(
+                resume_content.filename,
+                resume_content.content,
+                resume_content.file_type,
+                resume_content.metadata
+            )
+            
+            if success:
+                st.success("✅ Resume saved and synced to chat widget!")
+            else:
+                st.error("❌ Failed to save resume")
+                return
+            
+            # Show processing results
+            st.subheader("📋 Resume Processing Results")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Filename", resume_content.filename)
+            with col2:
+                st.metric("Word Count", resume_content.metadata['word_count'])
+            with col3:
+                st.metric("File Size", f"{resume_content.metadata['file_size'] / 1024:.1f} KB")
+            
+            st.subheader("📄 Content Preview")
+            preview_text = resume_content.content[:500] + "..." if len(resume_content.content) > 500 else resume_content.content
+            st.text_area("Extracted Text (Preview)", preview_text, height=200, disabled=True)
+            
+            st.success("🎉 Resume is now active in the chat widget!")
+            
+        else:
+            st.error("Failed to process the resume. Please check the file format and try again.")
+
+def scrape_website(url: str, max_pages: int):
+    """Update knowledge base with website content"""
+    with st.spinner("Updating knowledge base..."):
+        scraper = SimpleWebsiteScraper()
+        content = scraper.scrape_website(url, max_pages)
+        
+        if content:
+            st.subheader("📊 Website Analysis Results")
+            df = pd.DataFrame([
+                {
+                    "Page URL": c.url,
+                    "Title": c.title[:50] + "..." if len(c.title) > 50 else c.title,
+                    "Content Length": c.metadata.get("word_count", 0),
+                    "Scraped At": c.timestamp.strftime("%Y-%m-%d %H:%M")
+                }
+                for c in content
+            ])
+            st.dataframe(df, use_container_width=True)
+            
+            total_words = sum(c.metadata.get("word_count", 0) for c in content)
+            st.info(f"📈 Successfully processed {len(content)} pages with {total_words:,} total words")
+            
+            # Note: Website content would need additional integration with the knowledge base
+            # This is mainly for content analysis
+            
+        else:
+            st.error("Could not retrieve content. Please verify the URL and try again.")
 
 def main():
     """Admin Dashboard - Complete management interface"""
@@ -1885,75 +2021,6 @@ def main():
         conversation_threads_tab()
         st.markdown("---")
         export_conversation_threads()
-
-def process_resume_file(uploaded_file):
-    """Process uploaded resume file"""
-    with st.spinner("Processing resume..."):
-        processor = ResumeProcessor()
-        resume_content = processor.process_resume(uploaded_file)
-        
-        if resume_content:
-            # Save to shared database
-            success = save_resume_shared(
-                resume_content.filename,
-                resume_content.content,
-                resume_content.file_type,
-                resume_content.metadata
-            )
-            
-            if success:
-                st.success("✅ Resume saved and synced to chat widget!")
-            else:
-                st.error("❌ Failed to save resume")
-                return
-            
-            # Show processing results
-            st.subheader("📋 Resume Processing Results")
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Filename", resume_content.filename)
-            with col2:
-                st.metric("Word Count", resume_content.metadata['word_count'])
-            with col3:
-                st.metric("File Size", f"{resume_content.metadata['file_size'] / 1024:.1f} KB")
-            
-            st.subheader("📄 Content Preview")
-            preview_text = resume_content.content[:500] + "..." if len(resume_content.content) > 500 else resume_content.content
-            st.text_area("Extracted Text (Preview)", preview_text, height=200, disabled=True)
-            
-            st.success("🎉 Resume is now active in the chat widget!")
-            
-        else:
-            st.error("Failed to process the resume. Please check the file format and try again.")
-
-def scrape_website(url: str, max_pages: int):
-    """Update knowledge base with website content"""
-    with st.spinner("Updating knowledge base..."):
-        scraper = SimpleWebsiteScraper()
-        content = scraper.scrape_website(url, max_pages)
-        
-        if content:
-            st.subheader("📊 Website Analysis Results")
-            df = pd.DataFrame([
-                {
-                    "Page URL": c.url,
-                    "Title": c.title[:50] + "..." if len(c.title) > 50 else c.title,
-                    "Content Length": c.metadata.get("word_count", 0),
-                    "Scraped At": c.timestamp.strftime("%Y-%m-%d %H:%M")
-                }
-                for c in content
-            ])
-            st.dataframe(df, use_container_width=True)
-            
-            total_words = sum(c.metadata.get("word_count", 0) for c in content)
-            st.info(f"📈 Successfully processed {len(content)} pages with {total_words:,} total words")
-            
-            # Note: Website content would need additional integration with the knowledge base
-            # This is mainly for content analysis
-            
-        else:
-            st.error("Could not retrieve content. Please verify the URL and try again.")
 
 if __name__ == "__main__":
     main()
