@@ -547,6 +547,33 @@ def calculate_conversation_duration(start_time: str, end_time: str) -> float:
     except:
         return 0.0
 
+def delete_conversation(session_id: str, timestamp) -> bool:
+    """Delete a specific conversation from the database"""
+    try:
+        db = get_shared_db()
+        data = db._load_gist_data()
+        
+        # Find and remove the conversation
+        conversations = data.get("conversations", [])
+        timestamp_str = timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp)
+        
+        # Filter out the conversation to delete
+        updated_conversations = [
+            conv for conv in conversations 
+            if not (conv.get('session_id') == session_id and conv.get('timestamp') == timestamp_str)
+        ]
+        
+        if len(updated_conversations) < len(conversations):
+            data["conversations"] = updated_conversations
+            data["last_updated"] = datetime.now().isoformat()
+            return db._save_gist_data(data)
+        else:
+            return False
+            
+    except Exception as e:
+        st.error(f"Error deleting conversation: {str(e)}")
+        return False
+
 class SimpleWebsiteScraper:
     """Simplified website scraper using only requests and BeautifulSoup"""
     
@@ -911,337 +938,104 @@ def enhanced_conversation_analysis():
     st.line_chart(intent_over_time)
 
 def conversation_search_and_filter():
-    """Advanced search and filtering for conversations - FIXED VERSION"""
-    st.subheader("🔍 Conversation Search & Filter")
+    """Simple conversation list with delete functionality"""
+    st.subheader("💬 All Conversations")
     
     conversation_data = load_conversation_data_shared()
     
     if conversation_data.empty:
-        st.info("No conversation data to search.")
+        st.info("No conversation data available.")
         return
     
-    # Convert timestamp FIRST and handle any errors
+    # Convert timestamp and handle any errors
     conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
-    
-    # Drop rows with invalid timestamps
     conversation_data = conversation_data.dropna(subset=['timestamp'])
     
     if conversation_data.empty:
-        st.warning("No valid conversation data found after timestamp parsing.")
+        st.warning("No valid conversation data found.")
         return
     
-    # Filters
-    col1, col2, col3 = st.columns(3)
+    # Simple search box only
+    search_term = st.text_input("🔍 Search in conversations", placeholder="Enter keywords to search...", key="conversation_search")
     
-    with col1:
-        # Intent filter
-        unique_intents = ['All'] + sorted(list(conversation_data['detected_intent'].dropna().unique()))
-        selected_intent = st.selectbox("Filter by Intent", unique_intents)
-    
-    with col2:
-        # Date filter - FIXED IMPLEMENTATION
-        min_date = conversation_data['timestamp'].min().date()
-        max_date = conversation_data['timestamp'].max().date()
-        
-        # Use separate date inputs with toggle
-        date_filter_enabled = st.checkbox("Enable Date Filter", value=False)
-        
-        if date_filter_enabled:
-            col2a, col2b = st.columns(2)
-            with col2a:
-                start_date = st.date_input(
-                    "From",
-                    value=min_date,
-                    min_value=min_date,
-                    max_value=max_date,
-                    key="filter_start_date"
-                )
-            with col2b:
-                end_date = st.date_input(
-                    "To", 
-                    value=max_date,
-                    min_value=min_date,
-                    max_value=max_date,
-                    key="filter_end_date"
-                )
-            
-            # Validate date range
-            if start_date > end_date:
-                st.error("Start date cannot be after end date!")
-                return
-        else:
-            start_date = min_date
-            end_date = max_date
-    
-    with col3:
-        # User filter
-        unique_users = ['All'] + sorted(list(conversation_data['user_name'].dropna().unique()))
-        selected_user = st.selectbox("Filter by User", unique_users)
-    
-    # Search box
-    search_term = st.text_input("🔍 Search in messages", placeholder="Enter keywords to search...")
-    
-    # Apply filters step by step with debugging
-    filtered_data = conversation_data.copy()
-    
-    # Debug: Show initial count
-    st.write(f"**Initial conversations:** {len(filtered_data)}")
-    
-    # Intent filter
-    if selected_intent != 'All':
-        before_count = len(filtered_data)
-        filtered_data = filtered_data[filtered_data['detected_intent'] == selected_intent]
-        st.write(f"**After intent filter ({selected_intent}):** {len(filtered_data)} (removed {before_count - len(filtered_data)})")
-    
-    # Date filter - FIXED IMPLEMENTATION
-    if date_filter_enabled:
-        before_count = len(filtered_data)
-        
-        # Convert dates to datetime for comparison
-        start_datetime = pd.Timestamp(start_date)
-        end_datetime = pd.Timestamp(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)  # End of day
-        
-        filtered_data = filtered_data[
-            (filtered_data['timestamp'] >= start_datetime) & 
-            (filtered_data['timestamp'] <= end_datetime)
-        ]
-        st.write(f"**After date filter ({start_date} to {end_date}):** {len(filtered_data)} (removed {before_count - len(filtered_data)})")
-    
-    # User filter
-    if selected_user != 'All':
-        before_count = len(filtered_data)
-        filtered_data = filtered_data[filtered_data['user_name'] == selected_user]
-        st.write(f"**After user filter ({selected_user}):** {len(filtered_data)} (removed {before_count - len(filtered_data)})")
-    
-    # Search term filter
+    # Apply search filter if provided
     if search_term:
-        before_count = len(filtered_data)
         search_mask = (
-            filtered_data['user_message'].str.contains(search_term, case=False, na=False) |
-            filtered_data['bot_response'].str.contains(search_term, case=False, na=False)
+            conversation_data['user_message'].str.contains(search_term, case=False, na=False) |
+            conversation_data['bot_response'].str.contains(search_term, case=False, na=False) |
+            conversation_data['user_name'].str.contains(search_term, case=False, na=False)
         )
-        filtered_data = filtered_data[search_mask]
-        st.write(f"**After search filter ('{search_term}'):** {len(filtered_data)} (removed {before_count - len(filtered_data)})")
-    
-    # Final results
-    st.markdown("---")
-    st.write(f"**📊 Final Results: {len(filtered_data)} conversations found**")
+        filtered_data = conversation_data[search_mask]
+        st.write(f"**Found {len(filtered_data)} conversations matching '{search_term}'**")
+    else:
+        filtered_data = conversation_data
+        st.write(f"**Showing all {len(filtered_data)} conversations**")
     
     if not filtered_data.empty:
-        # Add export button for filtered results
+        # Export button
         col1, col2 = st.columns([3, 1])
-        
         with col2:
-            filtered_csv = filtered_data.to_csv(index=False)
+            csv_data = filtered_data.to_csv(index=False)
             st.download_button(
-                label="📥 Export Filtered Results",
-                data=filtered_csv,
-                file_name=f"filtered_conversations_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv"
+                label="📥 Export All",
+                data=csv_data,
+                file_name=f"conversations_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",
+                key="export_conversations"
             )
         
-        # Display conversations with improved formatting
-        st.subheader("💬 Conversation Results")
+        # Sort by most recent first
+        sorted_data = filtered_data.sort_values('timestamp', ascending=False)
         
-        # Pagination
-        items_per_page = 10
-        total_pages = max(1, (len(filtered_data) + items_per_page - 1) // items_per_page)
-        
-        if total_pages > 1:
-            page = st.selectbox("Page", range(1, total_pages + 1)) - 1
-        else:
-            page = 0
-        
-        start_idx = page * items_per_page
-        end_idx = min(start_idx + items_per_page, len(filtered_data))
-        
-        page_data = filtered_data.sort_values('timestamp', ascending=False).iloc[start_idx:end_idx]
-        
-        for idx, (_, conv) in enumerate(page_data.iterrows()):
-            # Color coding by intent
+        # Display conversations with delete option
+        for idx, (_, conv) in enumerate(sorted_data.iterrows()):
             intent_colors = {
-                'hiring': '#e74c3c',
-                'skills': '#3498db', 
-                'projects': '#f39c12',
-                'education': '#2ecc71',
-                'personal': '#9b59b6',
-                'contact': '#e67e22',
+                'hiring': '#e74c3c', 'skills': '#3498db', 'projects': '#f39c12',
+                'education': '#2ecc71', 'personal': '#9b59b6', 'contact': '#e67e22',
                 'general': '#95a5a6'
             }
             intent_color = intent_colors.get(conv['detected_intent'], '#95a5a6')
             
+            # Create unique key for each conversation
+            conv_key = f"conv_{conv['session_id']}_{idx}"
+            
             with st.expander(
-                f"🕐 {conv['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} - {conv['user_name']} "
-                f"({conv['detected_intent']}) - Session: {conv['session_id'][:8]}..."
+                f"🕐 {conv['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} - {conv['user_name']} ({conv['detected_intent']})",
+                expanded=False
             ):
-                # Highlight search terms if any
-                user_msg = conv['user_message']
-                bot_msg = conv['bot_response']
-                
-                if search_term:
-                    # Simple highlighting (for display purposes)
-                    user_msg = user_msg.replace(search_term, f"**{search_term}**")
-                    bot_msg = bot_msg.replace(search_term, f"**{search_term}**")
-                
+                # Conversation content
                 st.markdown(f"""
-                <div style="border-left: 4px solid {intent_color}; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 0 8px 8px 0;">
+                <div style="border-left: 4px solid {intent_color}; padding: 15px; background: #f8f9fa; border-radius: 0 8px 8px 0;">
                     <div style="margin-bottom: 10px;">
-                        <strong>👤 User Message:</strong><br>
-                        {user_msg}
+                        <strong>👤 User:</strong> {conv['user_name']} ({conv['user_email']})
                     </div>
                     <div style="margin-bottom: 10px;">
-                        <strong>🤖 Bot Response:</strong><br>
-                        {bot_msg}
+                        <strong>📝 Question:</strong><br>
+                        {conv['user_message']}
                     </div>
-                    <div style="font-size: 12px; color: #666; display: flex; justify-content: space-between;">
-                        <span><strong>Email:</strong> {conv['user_email']}</span>
-                        <span><strong>Response Length:</strong> {conv['response_length']} chars</span>
-                        <span><strong>Session:</strong> {conv['session_id']}</span>
+                    <div style="margin-bottom: 10px;">
+                        <strong>🤖 Response:</strong><br>
+                        {conv['bot_response']}
+                    </div>
+                    <div style="font-size: 12px; color: #666;">
+                        <strong>Session:</strong> {conv['session_id']} | 
+                        <strong>Intent:</strong> {conv['detected_intent']} | 
+                        <strong>Response Length:</strong> {conv['response_length']} chars
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-        
-        # Show pagination info
-        if total_pages > 1:
-            st.write(f"Showing {start_idx + 1}-{end_idx} of {len(filtered_data)} conversations (Page {page + 1} of {total_pages})")
-    
+                
+                # Delete button for this conversation
+                col1, col2 = st.columns([4, 1])
+                with col2:
+                    if st.button(f"🗑️ Delete", key=f"delete_{conv_key}", type="secondary"):
+                        if delete_conversation(conv['session_id'], conv['timestamp']):
+                            st.success("Conversation deleted!")
+                            st.rerun()
+                        else:
+                            st.error("Failed to delete conversation")
     else:
-        st.info("🔍 No conversations match your filter criteria. Try adjusting your filters.")
-        
-        # Suggestions for no results
-        st.markdown("""
-        **💡 Try these suggestions:**
-        - Remove or change the date filter
-        - Select 'All' for intent or user filters  
-        - Use broader search terms
-        - Check if there's data in the selected date range
-        """)
-
-def live_conversation_monitor():
-    """Real-time conversation monitoring with auto-refresh"""
-    st.subheader("📡 Live Conversation Monitor")
-    
-    # Auto-refresh controls
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        auto_refresh = st.checkbox("🔄 Auto-refresh every 10 seconds")
-    
-    with col2:
-        if st.button("🔄 Manual Refresh"):
-            st.rerun()
-    
-    with col3:
-        sound_alerts = st.checkbox("🔔 Sound alerts (coming soon)")
-    
-    # Auto-refresh logic
-    if auto_refresh:
-        time.sleep(10)
-        st.rerun()
-    
-    conversation_data = load_conversation_data_shared()
-    
-    if conversation_data.empty:
-        st.info("🎯 Monitoring active - waiting for conversations...")
-        st.markdown("**Test the connection:**")
-        st.markdown("1. Open your chatbot widget in another tab")
-        st.markdown("2. Send a test message")
-        st.markdown("3. Watch it appear here in real-time!")
-        return
-    
-    # Convert timestamp
-    conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
-    
-    # Show recent activity (last 24 hours)
-    recent_cutoff = datetime.now() - pd.Timedelta(hours=24)
-    recent_data = conversation_data[conversation_data['timestamp'] > recent_cutoff]
-    
-    # Real-time stats
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("🕐 Last 24h Messages", len(recent_data))
-    
-    with col2:
-        active_sessions_24h = recent_data['session_id'].nunique()
-        st.metric("👥 Active Sessions (24h)", active_sessions_24h)
-    
-    with col3:
-        if not recent_data.empty:
-            last_activity = recent_data['timestamp'].max()
-            time_since = datetime.now() - last_activity.replace(tzinfo=None)
-            minutes_ago = int(time_since.total_seconds() / 60)
-            st.metric("⏱️ Last Activity", f"{minutes_ago}m ago")
-        else:
-            st.metric("⏱️ Last Activity", "No recent activity")
-    
-    with col4:
-        if not recent_data.empty:
-            top_intent_24h = recent_data['detected_intent'].mode().iloc[0] if not recent_data['detected_intent'].mode().empty else "N/A"
-            st.metric("🎯 Top Intent (24h)", top_intent_24h)
-        else:
-            st.metric("🎯 Top Intent (24h)", "N/A")
-    
-    # Live feed of recent conversations
-    st.markdown("---")
-    st.markdown("**📱 Live Conversation Feed (Last 20 messages)**")
-    
-    recent_conversations = conversation_data.sort_values('timestamp', ascending=False).head(20)
-    
-    for i, (_, conv) in enumerate(recent_conversations.iterrows()):
-        # Time since message
-        time_since = datetime.now() - conv['timestamp'].replace(tzinfo=None)
-        
-        # Color coding based on recency
-        if time_since.total_seconds() < 300:  # 5 minutes
-            border_color = "#28a745"  # Green
-            time_indicator = "🟢 LIVE"
-        elif time_since.total_seconds() < 3600:  # 1 hour
-            border_color = "#ffc107"  # Yellow
-            time_indicator = "🟡 Recent"
-        else:
-            border_color = "#6c757d"  # Gray
-            time_indicator = "⚪ Older"
-        
-        # Intent color coding
-        intent_colors = {
-            'hiring': '#e74c3c',
-            'skills': '#3498db',
-            'projects': '#f39c12',
-            'education': '#2ecc71',
-            'personal': '#9b59b6',
-            'contact': '#e67e22',
-            'general': '#95a5a6'
-        }
-        intent_color = intent_colors.get(conv['detected_intent'], '#95a5a6')
-        
-        # Format timestamp
-        timestamp_str = conv['timestamp'].strftime('%H:%M:%S')
-        
-        # Display conversation
-        st.markdown(f"""
-        <div style="
-            border-left: 4px solid {border_color}; 
-            padding: 12px; 
-            margin: 8px 0; 
-            background: #f8f9fa;
-            border-radius: 0 8px 8px 0;
-        ">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <strong>{timestamp_str}</strong> - <strong>{conv['user_name']}</strong>
-                <span style="background: {intent_color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
-                    {conv['detected_intent'].upper()}
-                </span>
-                <span style="font-size: 12px; color: #666;">{time_indicator}</span>
-            </div>
-            <div style="margin: 4px 0;">
-                <strong>👤 Q:</strong> {conv['user_message'][:100]}{'...' if len(conv['user_message']) > 100 else ''}
-            </div>
-            <div style="color: #666; font-size: 14px;">
-                <strong>🤖 A:</strong> {conv['bot_response'][:150]}{'...' if len(conv['bot_response']) > 150 else ''}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.info("No conversations found matching your search.")
 
 def conversation_export_options():
     """Enhanced export options for conversation data"""
@@ -1264,7 +1058,8 @@ def conversation_export_options():
             label="📥 Complete Conversations (CSV)",
             data=conv_csv,
             file_name=f"conversations_complete_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            mime="text/csv"
+            mime="text/csv",
+            key="export_complete_csv"
         )
         
         # JSON export for backup
@@ -1273,7 +1068,8 @@ def conversation_export_options():
             label="📥 Complete Conversations (JSON)",
             data=conv_json,
             file_name=f"conversations_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
-            mime="application/json"
+            mime="application/json",
+            key="export_complete_json"
         )
     
     with col2:
@@ -1292,7 +1088,8 @@ def conversation_export_options():
             label="📊 Intent Analytics (CSV)",
             data=intent_csv,
             file_name=f"intent_analytics_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
+            mime="text/csv",
+            key="export_intent_analytics"
         )
         
         # User engagement summary
@@ -1308,11 +1105,12 @@ def conversation_export_options():
             label="👥 User Engagement (CSV)",
             data=user_csv,
             file_name=f"user_engagement_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
+            mime="text/csv",
+            key="export_user_engagement"
         )
 
 def conversation_threads_tab():
-    """Complete conversation threads management tab"""
+    """Complete conversation threads management tab - NO DATE FILTER"""
     st.header("💬 Complete Conversation Threads")
     
     # Load conversation threads
@@ -1352,43 +1150,25 @@ def conversation_threads_tab():
         total_messages = threads_df['total_messages'].sum()
         st.metric("Total Messages", total_messages)
     
-    # Filters
+    # Filters - REMOVED DATE FILTER
     st.subheader("🔍 Filter Conversations")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         # User filter
         unique_users = ['All'] + list(threads_df['user_name'].unique())
-        selected_user = st.selectbox("Filter by User", unique_users)
+        selected_user = st.selectbox("Filter by User", unique_users, key="thread_user_filter")
     
     with col2:
-        # Date filter
-        min_date = threads_df['start_time'].min().date()
-        max_date = threads_df['start_time'].max().date()
-        date_range = st.date_input(
-            "Date Range",
-            value=(min_date, max_date),
-            min_value=min_date,
-            max_value=max_date
-        )
-    
-    with col3:
         # Duration filter
-        min_duration = st.number_input("Min Duration (minutes)", min_value=0.0, value=0.0)
+        min_duration = st.number_input("Min Duration (minutes)", min_value=0.0, value=0.0, key="thread_duration_filter")
     
     # Apply filters
     filtered_df = threads_df.copy()
     
     if selected_user != 'All':
         filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
-    
-    if len(date_range) == 2:
-        start_date, end_date = date_range
-        filtered_df = filtered_df[
-            (filtered_df['start_time'].dt.date >= start_date) & 
-            (filtered_df['start_time'].dt.date <= end_date)
-        ]
     
     if min_duration > 0:
         filtered_df = filtered_df[filtered_df['duration_minutes'] >= min_duration]
@@ -1441,7 +1221,7 @@ def conversation_threads_tab():
         if conversation:
             display_complete_conversation(conversation)
             
-            if st.button("❌ Close Conversation View"):
+            if st.button("❌ Close Conversation View", key="close_thread_conversation"):
                 del st.session_state.selected_conversation
                 st.rerun()
 
@@ -1467,7 +1247,8 @@ def export_conversation_threads():
             data=threads_json,
             file_name=f"complete_conversations_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
             mime="application/json",
-            help="Download all conversation threads with complete message history"
+            help="Download all conversation threads with complete message history",
+            key="export_threads_json"
         )
     
     with col2:
@@ -1480,19 +1261,19 @@ def export_conversation_threads():
                 data=summary_csv,
                 file_name=f"conversation_summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv",
-                help="Download conversation summary statistics"
+                help="Download conversation summary statistics",
+                key="export_threads_csv"
             )
 
 def enhanced_analytics_tab_v2():
-    """Enhanced analytics with all new features"""
+    """Enhanced analytics with all new features - NO LIVE MONITOR"""
     st.header("📊 Enhanced Conversation Analytics")
     
-    # Tabs within analytics
-    subtab1, subtab2, subtab3, subtab4 = st.tabs([
+    # Tabs within analytics - REMOVED LIVE MONITOR
+    subtab1, subtab2, subtab3 = st.tabs([
         "📈 Advanced Analytics", 
         "🔍 Search & Filter", 
-        "📥 Export Options",
-        "📡 Live Monitor"
+        "📥 Export Options"
     ])
     
     with subtab1:
@@ -1503,65 +1284,6 @@ def enhanced_analytics_tab_v2():
     
     with subtab3:
         conversation_export_options()
-    
-    with subtab4:
-        live_conversation_monitor()
-
-def live_monitoring_tab():
-    """Live monitoring tab"""
-    st.header("📡 Live Chatbot Monitoring")
-    
-    # Real-time status
-    st.subheader("🔴 Real-time Status")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        db = get_shared_db()
-        if db.use_gist:
-            st.success("🟢 Chatbot Connected")
-        else:
-            st.error("🔴 Chatbot Disconnected")
-    
-    with col2:
-        conversation_data = load_conversation_data_shared()
-        if not conversation_data.empty:
-            conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
-            last_activity = conversation_data['timestamp'].max()
-            if pd.notna(last_activity):
-                time_since = datetime.now() - last_activity.replace(tzinfo=None)
-                if time_since.total_seconds() < 300:  # 5 minutes
-                    st.success(f"🟢 Active {int(time_since.total_seconds())}s ago")
-                else:
-                    st.warning(f"🟡 Last seen {int(time_since.total_seconds()/60)}m ago")
-            else:
-                st.info("🟡 No recent activity")
-        else:
-            st.info("🟡 No activity recorded")
-    
-    with col3:
-        user_data = load_user_data_shared()
-        active_sessions = user_data['session_id'].nunique() if not user_data.empty else 0
-        st.info(f"👥 {active_sessions} Total Sessions")
-    
-    # Auto-refresh toggle
-    st.subheader("⚙️ Monitoring Settings")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        auto_refresh = st.checkbox("🔄 Auto-refresh every 10 seconds")
-    
-    with col2:
-        if st.button("🔄 Manual Refresh"):
-            st.rerun()
-    
-    # Auto-refresh logic
-    if auto_refresh:
-        time.sleep(10)
-        st.rerun()
-    
-    # Enhanced live monitoring
-    enhanced_conversation_analysis()
 
 def process_resume_file(uploaded_file):
     """Process uploaded resume file"""
@@ -1633,7 +1355,7 @@ def scrape_website(url: str, max_pages: int):
             st.error("Could not retrieve content. Please verify the URL and try again.")
 
 def main():
-    """Admin Dashboard - Complete management interface"""
+    """Admin Dashboard - Complete management interface - NO LIVE MONITORING"""
     st.set_page_config(
         page_title="Aniket Shirsat - Admin Dashboard",
         page_icon="⚙️",
@@ -1719,15 +1441,14 @@ def main():
         st.markdown("### 🔗 Database Status")
         show_database_status()
         
-    # Main admin interface - UPDATED WITH NEW TABS
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    # Main admin interface - REMOVED LIVE MONITORING TAB
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📊 Analytics Dashboard", 
         "📄 Resume Management", 
         "🖼️ Avatar Management", 
         "🌐 Website Scraping", 
         "⚙️ System Settings",
-        "📡 Live Monitoring",
-        "💬 Complete Conversations"  # NEW TAB
+        "💬 Complete Conversations"
     ])
     
     # Tab 1: Enhanced Analytics Dashboard
@@ -1955,7 +1676,7 @@ def main():
         **Embedding Code:**
         ```html
         <iframe 
-            src="https://mystrapp.vesselperform.com/" 
+            src="https://your-chat-widget-url.streamlit.app/" 
             width="420" 
             height="650" 
             frameborder="0"
@@ -2012,12 +1733,8 @@ def main():
                     else:
                         st.error("Failed to reset data")
 
-    # Tab 6: Live Monitoring
+    # Tab 6: Complete Conversations
     with tab6:
-        live_monitoring_tab()
-
-    # Tab 7: Complete Conversations - NEW TAB
-    with tab7:
         conversation_threads_tab()
         st.markdown("---")
         export_conversation_threads()
