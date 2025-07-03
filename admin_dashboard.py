@@ -1819,7 +1819,7 @@ def main():
         **Embedding Code:**
         ```html
         <iframe 
-            src="https://your-chat-widget.streamlit.app" 
+            src="https://mystrapp.vesselperform.com/" 
             width="420" 
             height="650" 
             frameborder="0"
