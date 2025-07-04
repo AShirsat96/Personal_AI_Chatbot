@@ -398,15 +398,19 @@ Always use the factual information provided about Aniket to answer questions acc
 
     def enhance_with_resume_data(self):
         """Enhance knowledge base with resume content"""
-        if not self.resume_data:
-            return
+        try:
+            if not self.resume_data:
+                return
 
-        resume_content = self.resume_data.get('content', '')
-        
-        # Check if resume_content is not None and not empty
-        if resume_content and isinstance(resume_content, str):
-            # Add resume info to system prompt
-            self.system_prompt += f"\n\nAdditional Resume Information:\n{resume_content[:1000]}..."
+            resume_content = self.resume_data.get('content', '')
+            
+            # Check if resume_content is valid and not None
+            if resume_content and isinstance(resume_content, str) and len(resume_content.strip()) > 0:
+                # Add resume info to system prompt
+                self.system_prompt += f"\n\nAdditional Resume Information:\n{resume_content[:1000]}..."
+        except Exception as e:
+            # If there's any error with resume data, just skip it and continue
+            pass
     
     def get_openai_response(self, user_input: str, intent: str, context: Dict[str, bool]) -> str:
         """Use OpenAI API to generate a custom response"""
