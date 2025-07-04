@@ -402,9 +402,11 @@ Always use the factual information provided about Aniket to answer questions acc
             return
 
         resume_content = self.resume_data.get('content', '')
-
-        # Add resume info to system prompt
-        self.system_prompt += f"\n\nAdditional Resume Information:\n{resume_content[:1000]}..."
+        
+        # Check if resume_content is not None and not empty
+        if resume_content and isinstance(resume_content, str):
+            # Add resume info to system prompt
+            self.system_prompt += f"\n\nAdditional Resume Information:\n{resume_content[:1000]}..."
     
     def get_openai_response(self, user_input: str, intent: str, context: Dict[str, bool]) -> str:
         """Use OpenAI API to generate a custom response"""
