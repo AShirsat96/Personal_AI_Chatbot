@@ -107,6 +107,7 @@ class GitHubGistDatabase:
         except Exception as e:
             st.error(f"Error saving to gist: {str(e)}")
             return self._save_local_data(data)
+    
     def _get_default_data(self) -> Dict:
         """Get default data structure - MATCHES ADMIN DASHBOARD"""
         return {
@@ -196,6 +197,7 @@ class GitHubGistDatabase:
         except Exception as e:
             st.error(f"Error saving conversation thread: {str(e)}")
             return False
+    
     def save_message_for_aniket(self, user_name: str, user_email: str, message_content: str, contact_info: str = "") -> bool:
         """Save messages left for Aniket"""
         try:
@@ -272,6 +274,7 @@ def get_shared_resume() -> Optional[Dict]:
     """Get resume from shared database"""
     db = get_shared_db()
     return db.get_resume()
+
 class SmartHybridChatbot:
     """Intelligent hybrid chatbot with OpenAI integration"""
 
@@ -367,6 +370,7 @@ You should help with questions about:
 - Personal interests and leadership experience
 
 Always use the factual information provided about Aniket to answer questions accurately."""
+        
         # Conversation patterns for natural interaction
         self.conversation_patterns = {
             "greetings": ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"],
@@ -401,6 +405,7 @@ Always use the factual information provided about Aniket to answer questions acc
 
         # Add resume info to system prompt
         self.system_prompt += f"\n\nAdditional Resume Information:\n{resume_content[:1000]}..."
+    
     def get_openai_response(self, user_input: str, intent: str, context: Dict[str, bool]) -> str:
         """Use OpenAI API to generate a custom response"""
         client = get_openai_client()
@@ -445,6 +450,7 @@ Always use the factual information provided about Aniket to answer questions acc
         """Check if OpenAI API should be used"""
         client = get_openai_client()
         return client is not None
+    
     def should_offer_conversation_closure(self, user_input: str, message_count: int) -> bool:
         """Determine if we should offer to end the conversation"""
         input_lower = user_input.lower().strip()
@@ -509,6 +515,7 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
     def get_conversation_continuation_response(self) -> str:
         """Response when user wants to continue"""
         return """Great! What else would you like to know about Aniket?"""
+    
     def analyze_intent(self, user_input: str) -> str:
         """Analyze user intent from input"""
         input_lower = user_input.lower().strip()
@@ -525,9 +532,9 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
             "let him know", "pass along", "forward this", "send this to him"
         ]) or
         (any(word in input_lower for word in ["my number", "my phone", "call me", "reach me", "contact me"]) and
-         any(char.isdigit() for char in user_input)) or
+        any(char.isdigit() for char in user_input)) or
         (re.search(r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})', user_input) and
-         any(word in input_lower for word in ["call", "contact", "reach", "message", "text"]))):
+        any(word in input_lower for word in ["call", "contact", "reach", "message", "text"]))):
             return "message_for_contact"
 
         elif any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3:
@@ -584,6 +591,7 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
             "is_formal": any(word in input_lower for word in ["professional", "formal", "business", "corporate"]),
             "wants_examples": any(word in input_lower for word in ["example", "instance", "case", "sample"])
         }
+    
     def generate_response(self, user_input: str) -> tuple[str, str]:
         """Generate intelligent response using OpenAI or fallback methods"""
         intent = self.analyze_intent(user_input)
@@ -659,7 +667,7 @@ Another project used NLP to build a cultural ambiguity detection model, achievin
 
 He's also the Head of Outreach for the Data Science and Machine Learning Club, reflecting strong leadership and communication skills."""
         elif intent == "availability":
-            return """Aniket is actively seeking full-time roles and is available immediately. He’s flexible with start dates and ready to begin interviews at your convenience."""
+            return """Aniket is actively seeking full-time roles and is available immediately. He's flexible with start dates and ready to begin interviews at your convenience."""
         elif intent == "salary":
             return """Salary expectations are flexible and depend on the role, location, and responsibilities. Aniket is primarily focused on finding a position where he can make meaningful contributions."""
         elif intent == "location":
@@ -672,6 +680,7 @@ He's also the Head of Outreach for the Data Science and Machine Learning Club, r
             return self.handle_message_for_contact(user_input="")
         else:
             return self.get_general_response(is_casual=is_casual)
+    
     def get_greeting_response(self, is_casual: bool = False) -> str:
         return """Hello! I'm Aniket's AI assistant.
 
@@ -845,7 +854,7 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-# Initialize session state
+    # Initialize session state
     if "chatbot" not in st.session_state:
         st.session_state.chatbot = SmartHybridChatbot()
     
@@ -959,7 +968,7 @@ def main():
     st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
     st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
 
-# Dynamic chat input
+    # Dynamic chat input
     if st.session_state.asking_for_name:
         placeholder = "Enter your name..."
     elif st.session_state.showing_email_buttons:
@@ -1058,7 +1067,7 @@ Your message: "{message_content}" """
                 
                 st.session_state.messages.append({"role": "assistant", "content": response})
 
-else:
+        else:
             # Normal chat with FULL SYNCHRONIZATION
             with st.spinner("🤖 Analyzing your question..."):
                 response, intent = st.session_state.chatbot.generate_response(prompt)
