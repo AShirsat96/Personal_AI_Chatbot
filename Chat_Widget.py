@@ -44,7 +44,7 @@ def is_valid_email(email: str) -> bool:
     return len(local) >= 1 and len(domain) >= 3 and '.' in domain
 
 class GitHubGistDatabase:
-    """Free shared database using GitHub Gist"""
+    """Free shared database using GitHub Gist - SYNCHRONIZED WITH ADMIN DASHBOARD"""
     
     def __init__(self):
         # Get credentials from Streamlit secrets
@@ -69,13 +69,17 @@ class GitHubGistDatabase:
         try:
             response = requests.get(
                 f"https://api.github.com/gists/{self.gist_id}",
-                headers=self.headers
+                headers=self.headers,
+                timeout=10
             )
             
             if response.status_code == 200:
                 gist_data = response.json()
-                content = gist_data["files"]["chatbot_data.json"]["content"]
-                return json.loads(content)
+                if "chatbot_data.json" in gist_data["files"]:
+                    content = gist_data["files"]["chatbot_data.json"]["content"]
+                    return json.loads(content)
+                else:
+                    return self._get_default_data()
             else:
                 return self._get_default_data()
                 
@@ -100,7 +104,8 @@ class GitHubGistDatabase:
             response = requests.patch(
                 f"https://api.github.com/gists/{self.gist_id}",
                 headers=self.headers,
-                json=payload
+                json=payload,
+                timeout=10
             )
             
             return response.status_code == 200
@@ -110,15 +115,15 @@ class GitHubGistDatabase:
             return self._save_local_data(data)
     
     def _get_default_data(self) -> Dict:
-        """Get default data structure"""
+        """Get default data structure - MATCHES ADMIN DASHBOARD"""
         return {
             "user_interactions": [],
             "conversations": [],
+            "conversation_threads": [],
             "resume_content": None,
             "avatar_data": None,
             "app_settings": {},
             "messages_for_aniket": [],
-            "conversation_threads": [],
             "last_updated": datetime.now().isoformat()
         }
     
@@ -134,7 +139,7 @@ class GitHubGistDatabase:
         return True
     
     def save_user_interaction(self, name: str, email: str, session_id: str) -> bool:
-        """Save user interaction"""
+        """Save user interaction - MATCHES ADMIN DASHBOARD FORMAT"""
         try:
             data = self._load_gist_data()
             
@@ -144,6 +149,9 @@ class GitHubGistDatabase:
                 "email": email,
                 "session_id": session_id
             }
+            
+            if "user_interactions" not in data:
+                data["user_interactions"] = []
             
             data["user_interactions"].append(user_entry)
             data["last_updated"] = datetime.now().isoformat()
@@ -155,7 +163,7 @@ class GitHubGistDatabase:
             return False
     
     def log_conversation(self, session_id: str, user_message: str, bot_response: str, intent: str, user_name: str = "", user_email: str = "") -> bool:
-        """Log conversation for analytics"""
+        """Log conversation for analytics - EXACTLY MATCHES ADMIN DASHBOARD FORMAT"""
         try:
             data = self._load_gist_data()
             
@@ -180,6 +188,35 @@ class GitHubGistDatabase:
             return self._save_gist_data(data)
             
         except Exception as e:
+            st.error(f"Error logging conversation: {str(e)}")
+            return False
+    
+    def save_conversation_thread(self, session_id: str, user_name: str, user_email: str, conversation_messages: list) -> bool:
+        """Save complete conversation thread - MATCHES ADMIN DASHBOARD FORMAT"""
+        try:
+            data = self._load_gist_data()
+            
+            conversation_thread = {
+                "session_id": session_id,
+                "user_name": user_name,
+                "user_email": user_email,
+                "start_time": conversation_messages[0]['timestamp'] if conversation_messages else datetime.now().isoformat(),
+                "end_time": conversation_messages[-1]['timestamp'] if conversation_messages else datetime.now().isoformat(),
+                "total_messages": len(conversation_messages),
+                "conversation_flow": conversation_messages,
+                "saved_at": datetime.now().isoformat()
+            }
+            
+            if "conversation_threads" not in data:
+                data["conversation_threads"] = []
+            
+            data["conversation_threads"].append(conversation_thread)
+            data["last_updated"] = datetime.now().isoformat()
+            
+            return self._save_gist_data(data)
+            
+        except Exception as e:
+            st.error(f"Error saving conversation thread: {str(e)}")
             return False
     
     def save_message_for_aniket(self, user_name: str, user_email: str, message_content: str, contact_info: str = "") -> bool:
@@ -221,6 +258,15 @@ class GitHubGistDatabase:
             
         except Exception as e:
             return None
+    
+    def get_resume(self) -> Optional[Dict]:
+        """Get current resume from shared database"""
+        try:
+            data = self._load_gist_data()
+            return data.get("resume_content")
+            
+        except Exception as e:
+            return None
 
 @st.cache_resource
 def get_shared_db():
@@ -237,6 +283,11 @@ def log_conversation_to_dashboard(session_id: str, user_message: str, bot_respon
     db = get_shared_db()
     return db.log_conversation(session_id, user_message, bot_response, intent, user_name, user_email)
 
+def save_conversation_thread_to_dashboard(session_id: str, user_name: str, user_email: str, messages: list) -> bool:
+    """Save complete conversation thread to dashboard"""
+    db = get_shared_db()
+    return db.save_conversation_thread(session_id, user_name, user_email, messages)
+
 def save_message_for_aniket(user_name: str, user_email: str, message_content: str, contact_info: str = "") -> bool:
     """Save message for Aniket to shared database"""
     db = get_shared_db()
@@ -247,10 +298,18 @@ def get_shared_avatar() -> Optional[str]:
     db = get_shared_db()
     return db.get_avatar()
 
+def get_shared_resume() -> Optional[Dict]:
+    """Get resume from shared database"""
+    db = get_shared_db()
+    return db.get_resume()
+
 class SmartHybridChatbot:
     """Intelligent hybrid chatbot with OpenAI integration"""
     
     def __init__(self):
+        # Load resume content from shared database
+        self.resume_data = get_shared_resume()
+        
         # Comprehensive knowledge base about Aniket
         self.aniket_data = {
             "personal_info": {
@@ -315,6 +374,10 @@ class SmartHybridChatbot:
             }
         }
         
+        # Enhance with resume data if available
+        if self.resume_data:
+            self.enhance_with_resume_data()
+        
         # System prompt for OpenAI
         self.system_prompt = """You are Aniket Shirsat's AI assistant. Your role is to help people learn about Aniket's professional background and qualifications in a natural, conversational way.
 
@@ -361,7 +424,17 @@ Always use the factual information provided about Aniket to answer questions acc
             "future": ["future", "goals", "plans", "career path", "ambition", "vision"]
         }
     
-    def get_openai_response(self, user_question: str, intent: str, context: Dict[str, bool]) -> str:
+    def enhance_with_resume_data(self):
+        """Enhance knowledge base with resume content"""
+        if not self.resume_data:
+            return
+        
+        resume_content = self.resume_data.get('content', '')
+        
+        # Add resume info to system prompt
+        self.system_prompt += f"\n\nAdditional Resume Information:\n{resume_content[:1000]}..."
+
+def get_openai_response(self, user_question: str, intent: str, context: Dict[str, bool]) -> str:
         """Generate response using OpenAI API"""
         try:
             client = get_openai_client()
@@ -422,6 +495,10 @@ Available for interviews immediately, flexible with start dates"""
 - Key achievement: {self.aniket_data['experience']['key_projects'][1]['result']}
 - Skills: {', '.join(self.aniket_data['technical_skills']['programming'])}, {', '.join(self.aniket_data['technical_skills']['cloud_platforms'])}"""
             
+            # Add resume context if available
+            if self.resume_data:
+                context_data += f"\n\nResume Details: {self.resume_data['content'][:500]}..."
+            
             # Create the prompt
             prompt = f"""Based on this information about Aniket:
 
@@ -431,7 +508,7 @@ User question: "{user_question}"
 
 Provide a natural, conversational response (2-3 sentences max) that directly answers their question. Sound like a helpful human assistant recommending Aniket."""
 
-            # Call OpenAI API with updated format
+            # Call OpenAI API
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -445,7 +522,6 @@ Provide a natural, conversational response (2-3 sentences max) that directly ans
             return response.choices[0].message.content.strip()
             
         except Exception as e:
-            # Fallback to predefined responses if OpenAI fails
             st.warning(f"OpenAI API error: {str(e)}")
             return self.get_fallback_response(intent)
     
@@ -468,8 +544,8 @@ Provide a natural, conversational response (2-3 sentences max) that directly ans
         """Check if OpenAI API should be used"""
         client = get_openai_client()
         return client is not None
-    
-    def should_offer_conversation_closure(self, user_input: str, message_count: int) -> bool:
+
+def should_offer_conversation_closure(self, user_input: str, message_count: int) -> bool:
         """Determine if we should offer to end the conversation"""
         input_lower = user_input.lower().strip()
         
@@ -478,8 +554,8 @@ Provide a natural, conversational response (2-3 sentences max) that directly ans
         thanks_signals = any(word in input_lower for word in self.conversation_patterns["thanks"])
         ending_signals = any(phrase in input_lower for phrase in self.conversation_patterns["conversation_enders"])
         
-        # Check for conversation length (offer closure after comprehensive responses)
-        long_conversation = message_count >= 8  # After 4 exchanges
+        # Check for conversation length
+        long_conversation = message_count >= 8
         
         # Check for specific closure indicators
         closure_phrases = [
@@ -522,8 +598,8 @@ Provide a natural, conversational response (2-3 sentences max) that directly ans
         return """Is there anything else you'd like to know about Aniket? 
 
 Or if you have all the information you need, I can end our conversation here."""
-    
-    def get_conversation_ending_response(self, user_name: str = "") -> str:
+
+def get_conversation_ending_response(self, user_name: str = "") -> str:
         """Provide a natural conversation ending"""
         name_part = f" {user_name}" if user_name else ""
         
@@ -540,14 +616,13 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
         return """Great! What else would you like to know about Aniket?"""
     
     def analyze_intent(self, user_input: str) -> str:
-        """Analyze user intent from input with enhanced natural language understanding"""
+        """Analyze user intent from input"""
         input_lower = user_input.lower().strip()
         
-        # Handle empty or very short inputs
         if len(input_lower) < 2:
             return "general"
         
-        # Enhanced message for contact detection - moved higher in priority
+        # Enhanced message for contact detection
         if (any(phrase in input_lower for phrase in [
             "leave a message", "message for him", "ask him to contact", "have him call", 
             "get back to me", "follow up", "reach out to me", "contact me back",
@@ -561,43 +636,27 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
          any(word in input_lower for word in ["call", "contact", "reach", "message", "text"]))):
             return "message_for_contact"
         
-        # First check for specific question patterns - be more specific about greetings
-        elif any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3 and not any(word in input_lower for word in ["skill", "project", "hire", "experience", "hobby", "personal"]):
+        # Basic intent detection
+        elif any(word in input_lower for word in ["hello", "hi", "hey"]) and len(input_lower.split()) <= 3:
             return "greeting"
-        elif any(pattern in input_lower for pattern in ["thank", "thanks", "appreciate", "grateful"]) and not any(word in input_lower for word in ["skill", "project", "hire", "experience", "hobby", "personal"]):
+        elif any(pattern in input_lower for pattern in ["thank", "thanks", "appreciate", "grateful"]):
             return "thanks"
         elif any(pattern in input_lower for pattern in ["bye", "goodbye", "see you", "farewell", "take care", "exit", "quit"]):
             return "goodbye"
-        
-        # Enhanced question patterns - check PERSONAL/HOBBIES FIRST before other patterns
-        elif any(word in input_lower for word in ["hobby", "hobbies", "interest", "interests", "personal", "outside work", "free time", "activities", "personality", "rowing", "sports", "extracurricular", "club", "clubs", "passion", "enjoys", "recreation", "leisure"]):
+        elif any(word in input_lower for word in ["hobby", "hobbies", "interest", "interests", "personal", "outside work", "free time", "activities", "rowing", "sports", "club"]):
             return "personal"
-        
-        # Hiring and recommendation questions - expanded keywords
-        elif any(word in input_lower for word in ["hire", "hiring", "recruit", "recruiting", "employment", "why choose", "why select", "recommend", "recommendation", "choose", "employ", "candidate", "should we", "should i", "good choice", "worth it", "benefit", "advantages", "why him", "best fit", "suitable", "right person", "good candidate", "hire him", "employ him"]):
+        elif any(word in input_lower for word in ["hire", "hiring", "recruit", "recommend", "choose", "employ", "candidate", "why him", "why choose"]):
             return "hiring"
-        
-        # Skills and technical abilities - expanded
-        elif any(word in input_lower for word in ["skill", "skills", "technical", "programming", "tech", "abilities", "competencies", "expertise", "tools", "technologies", "what can he do", "good at", "proficient", "capabilities", "knowledge", "knows", "familiar with", "experienced in", "coding", "development", "software", "languages", "frameworks", "platforms"]):
+        elif any(word in input_lower for word in ["skill", "skills", "technical", "programming", "tech", "abilities", "tools", "technologies", "capabilities", "expertise"]):
             return "skills"
-        
-        # Education and academic background - expanded
-        elif any(word in input_lower for word in ["education", "educational", "school", "degree", "degrees", "gpa", "university", "academic", "academics", "study", "studied", "college", "qualification", "qualifications", "background", "learning", "courses", "curriculum", "major", "minor", "thesis", "research", "graduate", "undergraduate", "masters", "bachelor"]):
+        elif any(word in input_lower for word in ["education", "school", "degree", "gpa", "university", "academic", "study", "college", "qualification"]):
             return "education"
-        
-        # Work experience and career - expanded
-        elif any(word in input_lower for word in ["experience", "work", "job", "jobs", "employment", "career", "professional", "background", "history", "worked at", "previous", "past", "role", "roles", "position", "positions", "employer", "company", "companies", "internship", "internships"]):
+        elif any(word in input_lower for word in ["experience", "work", "job", "employment", "career", "professional", "background", "history", "worked at"]):
             return "experience"
-        
-        # Projects and achievements - expanded
-        elif any(word in input_lower for word in ["project", "projects", "research", "built", "created", "developed", "worked on", "achievement", "achievements", "accomplishment", "accomplishments", "portfolio", "examples", "work samples", "case study", "success", "results", "outcomes", "impact", "contribution", "contributions"]):
+        elif any(word in input_lower for word in ["project", "projects", "research", "built", "created", "developed", "achievement", "accomplishment", "portfolio"]):
             return "projects"
-        
-        # Contact and reaching out - expanded
-        elif any(word in input_lower for word in ["contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "how to reach", "communication", "contact info", "contact information", "reach out", "get hold", "find him", "connect with"]):
+        elif any(word in input_lower for word in ["contact", "reach", "connect", "email", "phone", "linkedin", "get in touch", "communication"]):
             return "contact"
-        
-        # Conversation flow management - NEW
         elif st.session_state.get('awaiting_closure_response', False):
             ending_intent = self.detect_conversation_ending_intent(user_input)
             if ending_intent == "end_conversation":
@@ -605,32 +664,19 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
             elif ending_intent == "continue_conversation":
                 return "continue_conversation"
             else:
-                return "general"  # Treat unclear responses as new questions
-        
-        # Availability and timing - expanded
-        elif any(word in input_lower for word in ["available", "availability", "start", "starting", "when", "timeline", "notice", "free", "ready to work", "ready", "can start", "join", "begin", "commence", "timing", "schedule"]):
+                return "general"
+        elif any(word in input_lower for word in ["available", "availability", "start", "when", "timeline", "free", "ready"]):
             return "availability"
-        
-        # Salary and compensation - expanded
-        elif any(word in input_lower for word in ["salary", "compensation", "pay", "payment", "money", "cost", "rate", "price", "how much", "budget", "wage", "income", "package", "benefits", "remuneration", "fee", "charge"]):
+        elif any(word in input_lower for word in ["salary", "compensation", "pay", "money", "cost", "rate", "price", "budget"]):
             return "salary"
-        
-        # Location and work arrangement - expanded
-        elif any(word in input_lower for word in ["location", "where", "based", "remote", "relocate", "move", "lives", "located", "office", "onsite", "hybrid", "work from home", "place", "city", "country", "address", "geography", "willing to relocate"]):
+        elif any(word in input_lower for word in ["location", "where", "based", "remote", "relocate", "move", "office"]):
             return "location"
-        
-        # Company culture and fit - expanded
-        elif any(word in input_lower for word in ["culture", "team", "environment", "fit", "values", "work style", "team player", "collaborative", "personality", "attitude", "work ethic", "cultural fit", "team fit", "working style", "approach"]):
+        elif any(word in input_lower for word in ["culture", "team", "environment", "fit", "values", "work style"]):
             return "company_culture"
-        
-        # Future goals and career plans - expanded
-        elif any(word in input_lower for word in ["future", "goals", "plans", "career path", "ambition", "ambitions", "vision", "aspirations", "long term", "growth", "objectives", "aims", "direction", "next steps", "where see himself", "5 years", "10 years"]):
+        elif any(word in input_lower for word in ["future", "goals", "plans", "career path", "ambition", "vision", "long term"]):
             return "future"
-        
-        # Catch common question words that might not fit other categories
-        elif any(word in input_lower for word in ["who is", "what is", "tell me about", "describe", "explain", "information", "details", "about him", "about aniket", "overview", "summary", "profile"]):
+        elif any(word in input_lower for word in ["who is", "what is", "tell me about", "describe", "explain", "information", "about him"]):
             return "general"
-        
         else:
             return "general"
     
@@ -685,47 +731,69 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
                 response = self.get_predefined_response(intent, context, is_casual, is_formal)
         
         # Check if we should offer conversation closure after the response
-        message_count = len(st.session_state.messages) // 2  # Approximate exchange count
+        message_count = len(st.session_state.messages) // 2
         if (self.should_offer_conversation_closure(user_input, message_count) and 
             not st.session_state.get('awaiting_closure_response', False)):
-            # Add the closure offer to the response
             response += "\n\n" + self.get_conversation_closure_offer()
             st.session_state.awaiting_closure_response = True
             
         return response, intent
-    
-    def get_predefined_response(self, intent: str, context: Dict[str, bool], is_casual: bool, is_formal: bool) -> str:
+
+def get_predefined_response(self, intent: str, context: Dict[str, bool], is_casual: bool, is_formal: bool) -> str:
         """Get predefined response when OpenAI is not available"""
         if intent == "hiring":
-            return self.get_hiring_response(context, is_casual, is_formal)
+            return """I'd strongly recommend Aniket. He maintains a perfect 4.0 GPA while working as a Research Assistant, which shows he can handle multiple demanding responsibilities.
+
+Most importantly, his ML projects have delivered real business impact - over $1 million in annual savings from vessel optimization work. He's proficient in Python, R, SQL, and cloud platforms like AWS and Azure."""
         elif intent == "skills":
-            return self.get_skills_response(context, is_casual, is_formal)
+            return """Aniket is proficient in Python, R, and SQL for programming. He has experience with AWS, Azure, and Google Cloud Platform for cloud computing.
+
+His AI and machine learning expertise includes computer vision, natural language processing, and advanced analytics. What sets him apart is that he applies these skills to create real business value."""
         elif intent == "education":
-            return self.get_education_response(context, is_casual, is_formal)
+            return """Aniket is currently pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA. He also has a Master's in Management from Singapore Management University.
+
+This combination gives him both technical depth and business strategy perspective."""
         elif intent == "experience":
-            return self.get_experience_response(context, is_casual, is_formal)
+            return """Aniket currently works as a Research Assistant at Indiana University while completing his Master's degree. He's developed cultural ambiguity detection models that achieve 90% accuracy.
+
+His most impressive project is vessel fuel optimization - he created predictive algorithms that generate over $1 million in annual savings and 5% fuel reduction across 50+ vessels."""
         elif intent == "projects":
-            return self.get_projects_response(context, is_casual, is_formal)
+            return """Aniket has two standout projects. First, he built cultural ambiguity detection models using advanced NLP that achieve 90% accuracy for analyzing cultural sensitivity in advertisements.
+
+Second, his vessel fuel optimization project uses predictive algorithms to optimize maritime fleet fuel consumption across 50+ vessels."""
         elif intent == "personal":
-            return self.get_personal_response(context, is_casual, is_formal)
+            return """Beyond his technical work, Aniket serves as Head of Outreach and Project Committee for the Data Science Club, showing his leadership abilities. He's also a member of the Indiana University Jaguars Rowing Club.
+
+The combination of athletic discipline, community leadership, and technical expertise suggests someone who can perform under pressure."""
         elif intent == "contact":
-            return self.get_contact_response(context, is_casual, is_formal)
+            return f"""You can reach Aniket at {self.aniket_data['contact']['email']} or call him at {self.aniket_data['contact']['phone']}. He's also on LinkedIn at {self.aniket_data['contact']['linkedin']} and GitHub at {self.aniket_data['contact']['github']}.
+
+He typically responds to professional inquiries within 1-2 business days."""
         elif intent == "message_for_contact":
             return self.handle_message_for_contact(user_input)
         elif intent == "availability":
-            return self.get_availability_response(context, is_casual, is_formal)
+            return """Aniket is available immediately for interviews and discussions. He's flexible with start dates and can accommodate your timeline.
+
+Since he's actively job searching and ready to move quickly for the right opportunity, I'd recommend reaching out soon if you're interested."""
         elif intent == "salary":
-            return self.get_salary_response(context, is_casual, is_formal)
+            return """Aniket takes a professional approach to compensation. He focuses on finding the right role and growth opportunities rather than just maximizing salary.
+
+Given his track record of delivering over $1 million in documented business impact, he's open to discussing competitive packages."""
         elif intent == "location":
-            return self.get_location_response(context, is_casual, is_formal)
+            return """Aniket is currently in Indianapolis for his studies at Indiana University, but he's very flexible with location. He's open to remote work, hybrid arrangements, or relocating for the right opportunity.
+
+His international experience from Singapore Management University shows he adapts well to different environments."""
         elif intent == "company_culture":
-            return self.get_culture_response(context, is_casual, is_formal)
+            return """Aniket would fit well in data-driven organizations that value both innovation and measurable results. His perfect 4.0 GPA while doing research shows high performance standards.
+
+His international background and diverse experiences make him adaptable to different team cultures."""
         elif intent == "future":
-            return self.get_future_response(context, is_casual, is_formal)
+            return """Short-term, Aniket wants to transition from academia into industry data science roles. Long-term, he's interested in technical leadership positions where he can bridge cutting-edge research with practical business solutions.
+
+His management background combined with technical skills positions him well for future leadership roles."""
         else:
             return self.get_general_response(is_casual)
     
-    # SHORT AND NATURAL RESPONSE METHODS
     def get_greeting_response(self, is_casual: bool = False) -> str:
         return """Hello! I'm Aniket's AI assistant. 
 
@@ -745,46 +813,8 @@ Feel free to reach out to him directly at ashirsat@iu.edu or connect on LinkedIn
 
 Have a great day!"""
     
-    def get_hiring_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """I'd strongly recommend Aniket. He maintains a perfect 4.0 GPA while working as a Research Assistant, which shows he can handle multiple demanding responsibilities.
-
-Most importantly, his ML projects have delivered real business impact - over $1 million in annual savings from vessel optimization work. He's proficient in Python, R, SQL, and cloud platforms like AWS and Azure.
-
-He also brings leadership experience as Head of the Data Science Club. It's rare to find someone who combines academic excellence with proven business results."""
-    
-    def get_skills_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Aniket is proficient in Python, R, and SQL for programming. He has experience with AWS, Azure, and Google Cloud Platform for cloud computing.
-
-His AI and machine learning expertise includes computer vision, natural language processing, and advanced analytics. What sets him apart is that he applies these skills to create real business value - his optimization projects have saved over $1 million annually."""
-    
-    def get_education_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Aniket is currently pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA. He also has a Master's in Management from Singapore Management University.
-
-This combination gives him both technical depth and business strategy perspective, which is pretty uncommon among data science candidates."""
-    
-    def get_experience_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Aniket currently works as a Research Assistant at Indiana University while completing his Master's degree. He's developed cultural ambiguity detection models that achieve 90% accuracy for analyzing advertisements.
-
-His most impressive project is vessel fuel optimization - he created predictive algorithms that generate over $1 million in annual savings and 5% fuel reduction across 50+ vessels. He's also Head of the Data Science Club and rows for the university team."""
-    
-    def get_projects_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Aniket has two standout projects. First, he built cultural ambiguity detection models using advanced NLP that achieve 90% accuracy for analyzing cultural sensitivity in advertisements.
-
-Second, his vessel fuel optimization project uses predictive algorithms to optimize maritime fleet fuel consumption. This system operates across 50+ vessels and delivers over $1 million in annual savings with 5% fuel reduction. Both show he can turn technical skills into real business impact."""
-    
-    def get_personal_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Beyond his technical work, Aniket serves as Head of Outreach and Project Committee for the Data Science Club, showing his leadership abilities. He's also a member of the Indiana University Jaguars Rowing Club.
-
-The combination of athletic discipline, community leadership, and technical expertise suggests someone who can perform under pressure and work well in teams."""
-    
-    def get_contact_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """You can reach Aniket at ashirsat@iu.edu or call him at +1 463 279 6071. He's also on LinkedIn at https://www.linkedin.com/in/aniketshirsatsg/ and GitHub at https://github.com/AShirsat96.
-
-He typically responds to professional inquiries within 1-2 business days."""
-    
     def handle_message_for_contact(self, user_input: str) -> str:
         """Handle cases where users leave messages for Aniket to contact them"""
-        # This will be overridden by the message collection flow in main()
         phone_pattern = r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})'
         phone_match = re.search(phone_pattern, user_input)
         
@@ -798,50 +828,24 @@ What message would you like me to pass along to him?"""
 
 What message would you like me to pass along to him, and what's the best way for him to reach you?"""
     
-    def get_availability_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Aniket is available immediately for interviews and discussions. He's flexible with start dates and can accommodate your timeline.
-
-Since he's actively job searching and ready to move quickly for the right opportunity, I'd recommend reaching out soon if you're interested."""
-    
-    def get_salary_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Aniket takes a professional approach to compensation. He focuses on finding the right role and growth opportunities rather than just maximizing salary.
-
-Given his track record of delivering over $1 million in documented business impact, he's open to discussing competitive packages appropriate for his experience level."""
-    
-    def get_location_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Aniket is currently in Indianapolis for his studies at Indiana University, but he's very flexible with location. He's open to remote work, hybrid arrangements, or relocating for the right opportunity.
-
-His international experience from Singapore Management University shows he adapts well to different environments."""
-    
-    def get_culture_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Aniket would fit well in data-driven organizations that value both innovation and measurable results. His perfect 4.0 GPA while doing research shows high performance standards, and his leadership roles demonstrate he works well collaboratively.
-
-His international background and diverse experiences make him adaptable to different team cultures."""
-    
-    def get_future_response(self, context: Dict[str, bool], is_casual: bool = False, is_formal: bool = False) -> str:
-        return """Short-term, Aniket wants to transition from academia into industry data science roles. Long-term, he's interested in technical leadership positions where he can bridge cutting-edge research with practical business solutions.
-
-His management background combined with technical skills positions him well for future leadership roles."""
-    
     def get_general_response(self, is_casual: bool = False) -> str:
-        return f"""Aniket Shirsat is pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant.
+        return """Aniket Shirsat is pursuing his Master's in Applied Data Science at Indiana University Indianapolis with a perfect 4.0 GPA while working as a Research Assistant.
 
 His key highlights include over $1 million in business impact from ML projects, skills in Python, R, SQL, AWS, Azure, and GCP, plus leadership experience with the Data Science Club and rowing team.
 
 He's currently seeking data science and machine learning opportunities where he can apply his combination of technical expertise and business understanding."""
 
 def main():
-    """Enhanced chatbot with simplified name collection"""
+    """Enhanced chatbot with COMPLETE dashboard synchronization"""
     st.set_page_config(
         page_title="Chat with Aniket's AI Assistant",
         page_icon="💬",
         layout="centered"
     )
     
-    # Enhanced CSS with COMPLETE close button removal including iframe/embed elements
+    # Enhanced CSS with close button removal
     st.markdown("""
     <style>
-        /* Complete app reset and layout */
         .stApp {
             margin: 0 !important;
             padding: 0 !important;
@@ -849,7 +853,6 @@ def main():
             min-height: 100vh;
         }
         
-        /* Hide ALL Streamlit default elements */
         .stApp > header {
             visibility: hidden !important;
             height: 0 !important;
@@ -862,82 +865,10 @@ def main():
             max-width: 100% !important;
         }
         
-        /* AGGRESSIVE close button hiding - targeting iframe/embed elements */
         .stDeployButton {display: none !important;}
         #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important;}
         
-        /* Hide parent container close buttons (iframe level) */
-        html, body {
-            overflow: hidden !important;
-        }
-        
-        /* Target all possible close button variations */
-        button[title="Close"],
-        button[aria-label="Close"],
-        button[data-testid="close-button"],
-        button[data-testid="closeButton"],
-        .close-button,
-        .close-btn,
-        [class*="close"],
-        [id*="close"],
-        button:contains("✕"),
-        button:contains("×"),
-        button:contains("X"),
-        /* Streamlit Cloud specific selectors */
-        .st-emotion-cache-*[title="Close"],
-        [data-baseweb="button"][aria-label="Close"],
-        [data-baseweb="button"]:contains("×"),
-        /* Additional iframe/embed selectors */
-        .streamlit-container .close,
-        .streamlit-app .close,
-        iframe + .close,
-        .embed-close,
-        .modal-close {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-            position: absolute !important;
-            left: -9999px !important;
-            top: -9999px !important;
-            width: 0 !important;
-            height: 0 !important;
-        }
-        
-        /* Hide any standalone X symbols */
-        div:contains("✕"):not(.message-bubble):not(.user-bubble),
-        div:contains("×"):not(.message-bubble):not(.user-bubble),
-        span:contains("✕"),
-        span:contains("×") {
-            display: none !important;
-        }
-        
-        /* Remove any containers that might hold close buttons */
-        .element-container:has(button:contains("✕")),
-        .element-container:has(button:contains("×")),
-        .element-container:has(button[title="Close"]),
-        .element-container:has(button[aria-label="Close"]) {
-            display: none !important;
-        }
-        
-        /* Additional safety net for any missed close elements */
-        [role="button"]:contains("✕"),
-        [role="button"]:contains("×"),
-        [tabindex]:contains("✕"),
-        [tabindex]:contains("×") {
-            display: none !important;
-        }
-        
-        /* Force hide top-right corner elements */
-        .stApp > div:first-child > div:first-child > div:last-child,
-        .stApp > header,
-        .stApp div[data-testid="stHeader"],
-        div[data-testid="stToolbar"] {
-            display: none !important;
-        }
-        
-        /* Chat container styling */
         .chat-container {
             background: white;
             border-radius: 20px;
@@ -956,7 +887,6 @@ def main():
             display: flex;
             align-items: center;
             gap: 15px;
-            position: relative;
         }
         
         .chat-avatar {
@@ -1021,47 +951,6 @@ def main():
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         
-        .email-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-        
-        .email-button {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 120px;
-            text-align: center;
-        }
-        
-        .email-button.yes {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-            color: white;
-        }
-        
-        .email-button.yes:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(76,175,80,0.3);
-        }
-        
-        .email-button.no {
-            background: linear-gradient(135deg, #f44336 0%, #da190b 100%);
-            color: white;
-        }
-        
-        .email-button.no:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(244,67,54,0.3);
-        }
-        
-        /* Mobile responsive */
         @media (max-width: 768px) {
             .chat-container {
                 max-width: 95%;
@@ -1069,195 +958,37 @@ def main():
                 border-radius: 15px;
             }
             
-            .chat-header {
-                padding: 15px;
-            }
-            
-            .chat-avatar {
-                width: 40px;
-                height: 40px;
-            }
-            
-            .chat-title h3 {
-                font-size: 16px;
-            }
-            
-            .message-container {
-                max-height: 400px;
-                padding: 10px 15px;
-            }
-            
             .message-bubble, .user-bubble {
                 max-width: 280px;
                 font-size: 13px;
             }
-            
-            .email-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .email-button {
-                width: 200px;
-            }
         }
     </style>
-    
-    <script>
-        // Ultra-aggressive close button removal script targeting iframe/embed scenarios
-        (function() {
-            function removeAllCloseElements() {
-                // Remove buttons with close-related content
-                const buttons = document.querySelectorAll('button, [role="button"], [tabindex], div[onclick], span[onclick]');
-                buttons.forEach(button => {
-                    const text = button.textContent.trim();
-                    const title = button.getAttribute('title');
-                    const ariaLabel = button.getAttribute('aria-label');
-                    
-                    if (text === '✕' || text === '×' || text === 'X' || text === 'x' ||
-                        title === 'Close' || ariaLabel === 'Close' ||
-                        button.dataset.testid === 'close-button' ||
-                        button.dataset.testid === 'closeButton' ||
-                        button.classList.contains('close') ||
-                        button.id.includes('close')) {
-                        button.style.display = 'none';
-                        button.style.visibility = 'hidden';
-                        button.style.opacity = '0';
-                        button.style.pointerEvents = 'none';
-                        button.style.position = 'absolute';
-                        button.style.left = '-9999px';
-                        button.style.top = '-9999px';
-                        button.remove();
-                    }
-                });
-                
-                // Remove any divs that only contain close symbols
-                const divs = document.querySelectorAll('div, span, i, svg');
-                divs.forEach(element => {
-                    const text = element.textContent.trim();
-                    if ((text === '✕' || text === '×' || text === 'X') && 
-                        element.children.length === 0 && 
-                        !element.classList.contains('message-bubble') && 
-                        !element.classList.contains('user-bubble')) {
-                        element.style.display = 'none';
-                        element.remove();
-                    }
-                });
-                
-                // Remove any elements with close-related classes or IDs
-                const closeElements = document.querySelectorAll('[class*="close"], [id*="close"], .st-emotion-cache-*[title="Close"]');
-                closeElements.forEach(element => {
-                    if (!element.classList.contains('message-bubble') && 
-                        !element.classList.contains('user-bubble')) {
-                        element.style.display = 'none';
-                        element.remove();
-                    }
-                });
-                
-                // Target iframe parent elements (if this app is embedded)
-                try {
-                    if (window.parent !== window) {
-                        // We're in an iframe, try to access parent
-                        const parentDoc = window.parent.document;
-                        const parentCloseButtons = parentDoc.querySelectorAll('button, [role="button"]');
-                        parentCloseButtons.forEach(btn => {
-                            const text = btn.textContent.trim();
-                            if (text === '✕' || text === '×' || text === 'X') {
-                                btn.style.display = 'none';
-                            }
-                        });
-                    }
-                } catch (e) {
-                    // Cross-origin restriction, can't access parent
-                    console.log('Cannot access parent frame (cross-origin)');
-                }
-                
-                // Hide top-right corner elements specifically
-                const topRightElements = document.querySelectorAll('.stApp > div:first-child > div:last-child, [data-testid="stHeader"], [data-testid="stToolbar"]');
-                topRightElements.forEach(el => {
-                    el.style.display = 'none';
-                });
-            }
-            
-            // Enhanced startup sequence
-            function initCloseButtonRemoval() {
-                removeAllCloseElements();
-                
-                // Set up mutation observer with enhanced options
-                const observer = new MutationObserver(function(mutations) {
-                    let shouldClean = false;
-                    mutations.forEach(function(mutation) {
-                        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                            shouldClean = true;
-                        }
-                        if (mutation.type === 'attributes') {
-                            const target = mutation.target;
-                            if (target.textContent && (target.textContent.includes('✕') || target.textContent.includes('×'))) {
-                                shouldClean = true;
-                            }
-                        }
-                    });
-                    if (shouldClean) {
-                        setTimeout(removeAllCloseElements, 10);
-                    }
-                });
-                
-                observer.observe(document.body, { 
-                    childList: true, 
-                    subtree: true,
-                    attributes: true,
-                    attributeFilter: ['style', 'class', 'title', 'aria-label', 'data-testid'],
-                    characterData: true
-                });
-                
-                // More aggressive periodic cleanup
-                setInterval(removeAllCloseElements, 1000); // Every 1 second
-            }
-            
-            // Multiple initialization triggers
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initCloseButtonRemoval);
-            } else {
-                initCloseButtonRemoval();
-            }
-            
-            // Additional safety triggers
-            window.addEventListener('load', removeAllCloseElements);
-            setTimeout(removeAllCloseElements, 100);
-            setTimeout(removeAllCloseElements, 500);
-            setTimeout(removeAllCloseElements, 1000);
-            setTimeout(removeAllCloseElements, 2000);
-            setTimeout(removeAllCloseElements, 5000);
-        })();
-    </script>
     """, unsafe_allow_html=True)
-    
-    # Initialize
+
+# Initialize session state
     if "chatbot" not in st.session_state:
         st.session_state.chatbot = SmartHybridChatbot()
     
     if "session_id" not in st.session_state:
         st.session_state.session_id = f"enhanced_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
-    # Simplified initialization - only ask for name once, no validation
-    if "asking_for_name" not in st.session_state:
-        st.session_state.asking_for_name = False
-    if "showing_email_buttons" not in st.session_state:
-        st.session_state.showing_email_buttons = False
-    if "asking_for_email" not in st.session_state:
-        st.session_state.asking_for_email = False
-    if "asking_for_message" not in st.session_state:
-        st.session_state.asking_for_message = False
-    if "message_contact_info" not in st.session_state:
-        st.session_state.message_contact_info = ""
-    if "user_name" not in st.session_state:
-        st.session_state.user_name = ""
-    if "user_email" not in st.session_state:
-        st.session_state.user_email = ""
-    if "user_display_name" not in st.session_state:
-        st.session_state.user_display_name = ""
-    if "email_choice_made" not in st.session_state:
-        st.session_state.email_choice_made = False
+    # Initialize conversation state
+    for key, default_value in {
+        "asking_for_name": False,
+        "showing_email_buttons": False,
+        "asking_for_email": False,
+        "asking_for_message": False,
+        "message_contact_info": "",
+        "user_name": "",
+        "user_email": "",
+        "user_display_name": "",
+        "email_choice_made": False,
+        "conversation_thread": [],
+        "awaiting_closure_response": False
+    }.items():
+        if key not in st.session_state:
+            st.session_state[key] = default_value
     
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -1272,10 +1003,10 @@ def main():
         ]
         st.session_state.asking_for_name = True
     
-    # Chat UI - Header section without ANY close functionality
+    # Chat UI
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    # Clean header with no buttons whatsoever
+    # Header
     shared_avatar = get_shared_avatar()
     avatar_src = shared_avatar if shared_avatar else "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTIgMTJDMTQuNzYxNCAxMiAxNyA5Ljc2MTQyIDE3IDdDMTcgNC4yMzg1OCAxNC43NjE0IDIgMTIgMkM5LjIzODU4IDIgNyA0LjIzODU4IDcgN0M3IDkuNzYxNDIgOS4yMzg1OCAxMiAxMiAxMlpNMTIgMTRDOC42ODYyOSAxNCA2IDE2LjIzODYgNiAxOUg2QzYgMjEuNzYxNCA4LjIzODU4IDI0IDExIDI0SDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
     
@@ -1309,11 +1040,11 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     
-    # **Button-based email collection**
+    # Email collection buttons
     if st.session_state.showing_email_buttons and not st.session_state.email_choice_made:
         st.markdown("""
-        <div class="email-buttons">
-            <div style="width: 100%; text-align: center; margin-bottom: 10px; font-weight: 600; color: #333;">
+        <div style="text-align: center; margin: 15px 0;">
+            <div style="font-weight: 600; color: #333; margin-bottom: 10px;">
                 Would you like to share your email with Aniket?
             </div>
         </div>
@@ -1327,7 +1058,6 @@ def main():
                 st.session_state.showing_email_buttons = False
                 st.session_state.asking_for_email = True
                 
-                # Add user choice to messages
                 st.session_state.messages.append({"role": "user", "content": "✅ Yes, I'll share my email"})
                 st.session_state.messages.append({
                     "role": "assistant", 
@@ -1340,7 +1070,6 @@ def main():
                 st.session_state.email_choice_made = True
                 st.session_state.showing_email_buttons = False
                 
-                # Add user choice to messages
                 st.session_state.messages.append({"role": "user", "content": "❌ No, skip email"})
                 st.session_state.messages.append({
                     "role": "assistant", 
@@ -1350,13 +1079,12 @@ def main():
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
     st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
-    
-    # Dynamic chat input placeholders
+
+# Dynamic chat input
     if st.session_state.asking_for_name:
         placeholder = "Enter your name..."
     elif st.session_state.showing_email_buttons:
         placeholder = "Please use the buttons above to choose..."
-        # Disable input when showing buttons
         st.chat_input(placeholder, disabled=True)
         return
     elif st.session_state.asking_for_email:
@@ -1375,21 +1103,17 @@ def main():
         st.session_state.messages.append({"role": "user", "content": prompt})
         
         if st.session_state.asking_for_name:
-            # SIMPLIFIED: Accept whatever they type as the name, no validation
+            # Accept name input
             user_input = prompt.strip()
-            
-            # Set the name (even if empty)
             st.session_state.user_name = user_input if user_input else "Guest"
             st.session_state.asking_for_name = False
             
-            # Extract first name for display (or use full name if one word)
             if user_input:
                 name_parts = user_input.split()
                 st.session_state.user_display_name = name_parts[0]
             else:
                 st.session_state.user_display_name = "Guest"
             
-            # Directly proceed to email buttons without intermediate response
             st.session_state.showing_email_buttons = True
         
         elif st.session_state.asking_for_email:
@@ -1397,32 +1121,31 @@ def main():
             extracted_email = extract_email_from_input(prompt)
             
             if extracted_email and is_valid_email(extracted_email):
-                # Valid email - save it
                 st.session_state.user_email = extracted_email
                 st.session_state.asking_for_email = False
                 
+                # SYNCHRONIZE: Save user info to dashboard
                 save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
                 
                 response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
             
             elif is_valid_email(prompt.strip()):
-                # Valid email format - save it
                 st.session_state.user_email = prompt.strip()
                 st.session_state.asking_for_email = False
                 
+                # SYNCHRONIZE: Save user info to dashboard
                 save_user_info(st.session_state.user_name, st.session_state.user_email, st.session_state.session_id)
                 
                 response = f"Perfect! Thank you, {st.session_state.user_display_name}. I'm ready to answer questions about Aniket's professional background. What would you like to know?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
             
             else:
-                # Invalid email - ask again
                 response = "That doesn't look like a valid email address. Could you please try again? (e.g., john@company.com)"
                 st.session_state.messages.append({"role": "assistant", "content": response})
         
         elif st.session_state.asking_for_message:
-            # Handle message collection for Aniket
+            # Handle message collection
             message_content = prompt.strip()
             
             if message_content.lower() in ['cancel', 'nevermind', 'skip']:
@@ -1433,7 +1156,7 @@ def main():
                 response = "Could you please provide a bit more detail in your message? What would you like Aniket to know or follow up about?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
             else:
-                # Save the message
+                # SYNCHRONIZE: Save message to dashboard
                 message_saved = save_message_for_aniket(
                     st.session_state.user_name,
                     st.session_state.user_email,
@@ -1455,15 +1178,14 @@ He'll review this and follow up with you within 1-2 business days. You can also 
 Your message: "{message_content}" """
                 
                 st.session_state.messages.append({"role": "assistant", "content": response})
-        
-        else:
-            # Normal chat - standard response system
+
+else:
+            # Normal chat with FULL SYNCHRONIZATION
             with st.spinner("🤖 Analyzing your question..."):
                 response, intent = st.session_state.chatbot.generate_response(prompt)
             
             # Special handling for message_for_contact intent
             if intent == "message_for_contact":
-                # Extract contact info from the current message
                 phone_pattern = r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})'
                 phone_match = re.search(phone_pattern, prompt)
                 email_match = extract_email_from_input(prompt)
@@ -1487,20 +1209,27 @@ What message would you like me to pass along to him? Please share what you'd lik
                 
             st.session_state.messages.append({"role": "assistant", "content": response})
             
+            # CRITICAL SYNCHRONIZATION: Log EVERY conversation to dashboard
+            log_conversation_with_thread(
+                st.session_state.session_id,
+                prompt,
+                response,
+                intent,
+                st.session_state.user_name,
+                st.session_state.user_email
+            )
+            
             # Handle conversation ending
             if intent == "end_conversation":
-                # End the conversation and reset for fresh start
                 st.session_state.conversation_ending = True
                 
-                # Save final conversation thread
+                # SYNCHRONIZE: Save final conversation thread to dashboard
                 if hasattr(st.session_state, 'conversation_thread') and st.session_state.conversation_thread:
-                    # Add final user message to thread
                     st.session_state.conversation_thread.append({
                         'role': 'user',
                         'content': prompt,
                         'timestamp': datetime.now().isoformat()
                     })
-                    # Add final bot response to thread
                     st.session_state.conversation_thread.append({
                         'role': 'assistant',
                         'content': response,
@@ -1508,7 +1237,8 @@ What message would you like me to pass along to him? Please share what you'd lik
                         'timestamp': datetime.now().isoformat()
                     })
                     
-                    save_complete_conversation(
+                    # Save complete conversation thread to dashboard
+                    save_conversation_thread_to_dashboard(
                         st.session_state.session_id,
                         st.session_state.get('user_name', ''),
                         st.session_state.get('user_email', ''),
@@ -1517,20 +1247,10 @@ What message would you like me to pass along to him? Please share what you'd lik
                 
                 # Schedule reset for next interaction
                 st.session_state.reset_on_next_message = True
-            else:
-                # Enhanced logging with conversation threads
-                log_conversation_with_thread(
-                    st.session_state.session_id,
-                    prompt,
-                    response,
-                    intent,
-                    st.session_state.user_name,
-                    st.session_state.user_email
-                )
         
         st.rerun()
 
-# Enhanced helper functions
+# Enhanced helper functions for COMPLETE SYNCHRONIZATION
 def check_and_reset_if_needed():
     """Check if we need to reset the conversation"""
     if st.session_state.get('reset_on_next_message', False):
@@ -1540,23 +1260,23 @@ def check_and_reset_if_needed():
     return False
 
 def log_conversation_with_thread(session_id: str, user_message: str, bot_response: str, intent: str, user_name: str = "", user_email: str = ""):
-    """Enhanced logging that maintains conversation threads"""
+    """Enhanced logging that maintains conversation threads and syncs with dashboard"""
     
-    # Log individual message (existing functionality)
+    # SYNCHRONIZE: Log individual message to dashboard (existing functionality)
     log_conversation_to_dashboard(session_id, user_message, bot_response, intent, user_name, user_email)
     
-    # Build conversation thread
+    # Build conversation thread for complete conversation tracking
     if 'conversation_thread' not in st.session_state:
         st.session_state.conversation_thread = []
     
-    # Add user message
+    # Add user message to thread
     st.session_state.conversation_thread.append({
         'role': 'user',
         'content': user_message,
         'timestamp': datetime.now().isoformat()
     })
     
-    # Add bot response
+    # Add bot response to thread
     st.session_state.conversation_thread.append({
         'role': 'assistant',
         'content': bot_response,
@@ -1564,9 +1284,9 @@ def log_conversation_with_thread(session_id: str, user_message: str, bot_respons
         'timestamp': datetime.now().isoformat()
     })
     
-    # Save thread periodically (every 10 messages) or when session ends
+    # SYNCHRONIZE: Save thread periodically (every 10 messages) or when session ends
     if len(st.session_state.conversation_thread) % 10 == 0:  # Every 5 exchanges
-        save_complete_conversation(
+        save_conversation_thread_to_dashboard(
             session_id, 
             user_name, 
             user_email, 
@@ -1575,9 +1295,9 @@ def log_conversation_with_thread(session_id: str, user_message: str, bot_respons
 
 def reset_conversation_session():
     """Reset the conversation session for a fresh start"""
-    # Save the current conversation thread before resetting
+    # SYNCHRONIZE: Save the current conversation thread before resetting
     if hasattr(st.session_state, 'conversation_thread') and st.session_state.conversation_thread:
-        save_complete_conversation(
+        save_conversation_thread_to_dashboard(
             st.session_state.session_id,
             st.session_state.get('user_name', ''),
             st.session_state.get('user_email', ''),
@@ -1599,7 +1319,7 @@ def reset_conversation_session():
     st.session_state.user_email = user_email
     st.session_state.user_display_name = user_display_name
     
-    # Create new session ID
+    # Create new session ID for fresh conversation tracking
     st.session_state.session_id = f"enhanced_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     # Reset conversation state
@@ -1619,36 +1339,6 @@ def reset_conversation_session():
             "content": f"Hello{greeting_name}! I'm ready to help with any new questions about Aniket's background, skills, or experience. What would you like to know?"
         }
     ]
-
-def save_complete_conversation(session_id: str, user_name: str, user_email: str, conversation_messages: List[Dict]):
-    """Save complete conversation thread"""
-    try:
-        db = get_shared_db()
-        data = db._load_gist_data()
-        
-        # Create conversation thread entry
-        conversation_thread = {
-            "session_id": session_id,
-            "user_name": user_name,
-            "user_email": user_email,
-            "start_time": conversation_messages[0]['timestamp'] if conversation_messages else datetime.now().isoformat(),
-            "end_time": conversation_messages[-1]['timestamp'] if conversation_messages else datetime.now().isoformat(),
-            "total_messages": len(conversation_messages),
-            "conversation_flow": conversation_messages,  # Complete conversation
-            "saved_at": datetime.now().isoformat()
-        }
-        
-        # Add to conversation threads
-        if "conversation_threads" not in data:
-            data["conversation_threads"] = []
-        
-        data["conversation_threads"].append(conversation_thread)
-        data["last_updated"] = datetime.now().isoformat()
-        
-        return db._save_gist_data(data)
-        
-    except Exception as e:
-        return False
 
 if __name__ == "__main__":
     main()
