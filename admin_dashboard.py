@@ -13,6 +13,7 @@ from PIL import Image
 import PyPDF2
 import docx
 import pickle
+import pytz  # Add this import for timezone handling
 
 # Core libraries
 import pandas as pd
@@ -26,16 +27,39 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-# GitHub Gist Database Class (enhanced)
+# EDT timezone setup
+EDT = pytz.timezone('US/Eastern')
+
+def get_edt_timestamp() -> str:
+    """Get current timestamp in EDT timezone"""
+    return datetime.now(EDT).isoformat()
+
+def get_edt_datetime() -> datetime:
+    """Get current datetime in EDT timezone"""
+    return datetime.now(EDT)
+
+def convert_to_edt_display(timestamp_str: str) -> str:
+    """Convert any timestamp to EDT display format"""
+    try:
+        # Parse the timestamp (handle both naive and aware datetimes)
+        if timestamp_str:
+            dt = pd.to_datetime(timestamp_str, utc=True)
+            edt_dt = dt.tz_convert(EDT)
+            return edt_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+        return "Unknown"
+    except:
+        return timestamp_str
+
+# GitHub Gist Database Class (enhanced with EDT support)
 class GitHubGistDatabase:
-    """Free shared database using GitHub Gist"""
+    """Free shared database using GitHub Gist with EDT timezone support"""
     
     def __init__(self):
         # Get credentials from Streamlit secrets
         self.github_token = st.secrets.get("GITHUB_TOKEN", "")
         self.gist_id = st.secrets.get("GIST_ID", "")
         
-        if not self.github_token or not self.gist_id:
+        if not self.use_gist:
             self.use_gist = False
         else:
             self.use_gist = True
@@ -99,7 +123,7 @@ class GitHubGistDatabase:
             return self._save_local_data(data)
     
     def _get_default_data(self) -> Dict:
-        """Get default data structure"""
+        """Get default data structure with EDT timestamp"""
         return {
             "user_interactions": [],
             "conversations": [],
@@ -107,7 +131,7 @@ class GitHubGistDatabase:
             "resume_content": None,
             "avatar_data": None,
             "app_settings": {},
-            "last_updated": datetime.now().isoformat()
+            "last_updated": get_edt_timestamp()  # Updated to use EDT
         }
     
     def _get_local_data(self) -> Dict:
@@ -122,19 +146,22 @@ class GitHubGistDatabase:
         return True
     
     def save_user_interaction(self, name: str, email: str, session_id: str) -> bool:
-        """Save user interaction"""
+        """Save user interaction with EDT timestamp"""
         try:
             data = self._load_gist_data()
             
+            edt_now = get_edt_datetime()
+            
             user_entry = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": get_edt_timestamp(),  # Updated to use EDT
+                "timestamp_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z'),  # Human readable EDT
                 "name": name,
                 "email": email,
                 "session_id": session_id
             }
             
             data["user_interactions"].append(user_entry)
-            data["last_updated"] = datetime.now().isoformat()
+            data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
             
             return self._save_gist_data(data)
             
@@ -143,31 +170,39 @@ class GitHubGistDatabase:
             return False
     
     def get_user_interactions(self) -> pd.DataFrame:
-        """Get all user interactions"""
+        """Get all user interactions with EDT timezone conversion"""
         try:
             data = self._load_gist_data()
             interactions = data.get("user_interactions", [])
             
             if interactions:
-                return pd.DataFrame(interactions)
+                df = pd.DataFrame(interactions)
+                # Convert timestamps to EDT for display
+                if 'timestamp' in df.columns:
+                    df['timestamp_display'] = df['timestamp'].apply(convert_to_edt_display)
+                return df
             else:
-                return pd.DataFrame(columns=['timestamp', 'name', 'email', 'session_id'])
+                return pd.DataFrame(columns=['timestamp', 'timestamp_edt', 'name', 'email', 'session_id'])
                 
         except Exception as e:
             st.error(f"Error loading user interactions: {str(e)}")
-            return pd.DataFrame(columns=['timestamp', 'name', 'email', 'session_id'])
+            return pd.DataFrame(columns=['timestamp', 'timestamp_edt', 'name', 'email', 'session_id'])
     
     def get_conversations(self) -> pd.DataFrame:
-        """Get all conversation data"""
+        """Get all conversation data with EDT timezone conversion"""
         try:
             data = self._load_gist_data()
             conversations = data.get("conversations", [])
             
             if conversations:
-                return pd.DataFrame(conversations)
+                df = pd.DataFrame(conversations)
+                # Convert timestamps to EDT for display
+                if 'timestamp' in df.columns:
+                    df['timestamp_display'] = df['timestamp'].apply(convert_to_edt_display)
+                return df
             else:
                 return pd.DataFrame(columns=[
-                    'timestamp', 'session_id', 'user_name', 'user_email', 
+                    'timestamp', 'timestamp_edt', 'session_id', 'user_name', 'user_email', 
                     'user_message', 'bot_response', 'detected_intent', 
                     'response_length', 'message_length'
                 ])
@@ -175,13 +210,13 @@ class GitHubGistDatabase:
         except Exception as e:
             st.error(f"Error loading conversations: {str(e)}")
             return pd.DataFrame(columns=[
-                'timestamp', 'session_id', 'user_name', 'user_email', 
+                'timestamp', 'timestamp_edt', 'session_id', 'user_name', 'user_email', 
                 'user_message', 'bot_response', 'detected_intent', 
                 'response_length', 'message_length'
             ])
     
     def get_conversation_threads(self) -> pd.DataFrame:
-        """Get all complete conversation threads"""
+        """Get all complete conversation threads with EDT timezone conversion"""
         try:
             data = self._load_gist_data()
             threads = data.get("conversation_threads", [])
@@ -195,9 +230,12 @@ class GitHubGistDatabase:
                         'user_email': thread['user_email'],
                         'start_time': thread['start_time'],
                         'end_time': thread['end_time'],
+                        'start_time_display': convert_to_edt_display(thread['start_time']),
+                        'end_time_display': convert_to_edt_display(thread['end_time']),
                         'total_messages': thread['total_messages'],
                         'duration_minutes': self.calculate_conversation_duration(thread['start_time'], thread['end_time']),
-                        'saved_at': thread['saved_at']
+                        'saved_at': thread['saved_at'],
+                        'saved_at_display': convert_to_edt_display(thread['saved_at'])
                     }
                     thread_summaries.append(summary)
                 
@@ -205,7 +243,8 @@ class GitHubGistDatabase:
             else:
                 return pd.DataFrame(columns=[
                     'session_id', 'user_name', 'user_email', 'start_time', 
-                    'end_time', 'total_messages', 'duration_minutes', 'saved_at'
+                    'end_time', 'start_time_display', 'end_time_display',
+                    'total_messages', 'duration_minutes', 'saved_at', 'saved_at_display'
                 ])
                 
         except Exception as e:
@@ -239,26 +278,30 @@ class GitHubGistDatabase:
             return None
     
     def save_conversation_thread(self, session_id: str, user_name: str, user_email: str, conversation_messages: list) -> bool:
-        """Save complete conversation thread"""
+        """Save complete conversation thread with EDT timestamps"""
         try:
             data = self._load_gist_data()
+            
+            edt_now = get_edt_datetime()
             
             conversation_thread = {
                 "session_id": session_id,
                 "user_name": user_name,
                 "user_email": user_email,
-                "start_time": conversation_messages[0]['timestamp'] if conversation_messages else datetime.now().isoformat(),
-                "end_time": conversation_messages[-1]['timestamp'] if conversation_messages else datetime.now().isoformat(),
+                "start_time": conversation_messages[0]['timestamp'] if conversation_messages else get_edt_timestamp(),
+                "end_time": conversation_messages[-1]['timestamp'] if conversation_messages else get_edt_timestamp(),
+                "start_time_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z') if not conversation_messages else conversation_messages[0].get('timestamp_edt', ''),
+                "end_time_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z') if not conversation_messages else conversation_messages[-1].get('timestamp_edt', ''),
                 "total_messages": len(conversation_messages),
                 "conversation_flow": conversation_messages,
-                "saved_at": datetime.now().isoformat()
+                "saved_at": get_edt_timestamp()  # Updated to use EDT
             }
             
             if "conversation_threads" not in data:
                 data["conversation_threads"] = []
             
             data["conversation_threads"].append(conversation_thread)
-            data["last_updated"] = datetime.now().isoformat()
+            data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
             
             return self._save_gist_data(data)
             
@@ -267,7 +310,7 @@ class GitHubGistDatabase:
             return False
     
     def save_resume(self, filename: str, content: str, file_type: str, metadata: dict) -> bool:
-        """Save resume content"""
+        """Save resume content with EDT timestamp"""
         try:
             data = self._load_gist_data()
             
@@ -276,11 +319,11 @@ class GitHubGistDatabase:
                 "content": content,
                 "file_type": file_type,
                 "metadata": metadata,
-                "uploaded_at": datetime.now().isoformat()
+                "uploaded_at": get_edt_timestamp()  # Updated to use EDT
             }
             
             data["resume_content"] = resume_data
-            data["last_updated"] = datetime.now().isoformat()
+            data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
             
             return self._save_gist_data(data)
             
@@ -303,7 +346,7 @@ class GitHubGistDatabase:
         try:
             data = self._load_gist_data()
             data["resume_content"] = None
-            data["last_updated"] = datetime.now().isoformat()
+            data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
             
             return self._save_gist_data(data)
             
@@ -312,17 +355,17 @@ class GitHubGistDatabase:
             return False
     
     def save_avatar(self, avatar_base64: str) -> bool:
-        """Save avatar data"""
+        """Save avatar data with EDT timestamp"""
         try:
             data = self._load_gist_data()
             
             avatar_data = {
                 "avatar_base64": avatar_base64,
-                "uploaded_at": datetime.now().isoformat()
+                "uploaded_at": get_edt_timestamp()  # Updated to use EDT
             }
             
             data["avatar_data"] = avatar_data
-            data["last_updated"] = datetime.now().isoformat()
+            data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
             
             return self._save_gist_data(data)
             
@@ -349,7 +392,7 @@ class GitHubGistDatabase:
         try:
             data = self._load_gist_data()
             data["avatar_data"] = None
-            data["last_updated"] = datetime.now().isoformat()
+            data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
             
             return self._save_gist_data(data)
             
@@ -369,7 +412,8 @@ class GitHubGistDatabase:
             try:
                 response = requests.get(f"https://api.github.com/gists/{self.gist_id}", headers=self.headers)
                 status["connection_test"] = response.status_code == 200
-                status["last_updated"] = self._load_gist_data().get("last_updated", "Never")
+                last_updated = self._load_gist_data().get("last_updated", "Never")
+                status["last_updated"] = convert_to_edt_display(last_updated) if last_updated != "Never" else "Never"
             except:
                 status["connection_test"] = False
         
@@ -378,7 +422,7 @@ class GitHubGistDatabase:
     def export_all_data(self) -> Dict:
         """Export all data for backup"""
         data = self._load_gist_data()
-        data["export_timestamp"] = datetime.now().isoformat()
+        data["export_timestamp"] = get_edt_timestamp()  # Updated to use EDT
         return data
     
     def clear_all_data(self) -> bool:
@@ -390,407 +434,20 @@ class GitHubGistDatabase:
             st.error(f"Error clearing data: {str(e)}")
             return False
 
-# Initialize shared database
-@st.cache_resource
-def get_shared_db():
-    """Get shared database instance"""
-    return GitHubGistDatabase()
-
-# Updated storage functions
-def save_user_info_shared(name: str, email: str, session_id: str) -> bool:
-    """Save user info to shared database"""
-    db = get_shared_db()
-    return db.save_user_interaction(name, email, session_id)
-
-def load_user_data_shared() -> pd.DataFrame:
-    """Load user data from shared database"""
-    db = get_shared_db()
-    return db.get_user_interactions()
-
-def load_conversation_data_shared() -> pd.DataFrame:
-    """Load conversation data from shared database"""
-    db = get_shared_db()
-    return db.get_conversations()
-
-def load_conversation_threads_shared() -> pd.DataFrame:
-    """Load conversation threads from shared database"""
-    db = get_shared_db()
-    return db.get_conversation_threads()
-
-def get_complete_conversation_shared(session_id: str) -> dict:
-    """Get complete conversation thread"""
-    db = get_shared_db()
-    return db.get_complete_conversation(session_id)
-
-def save_conversation_thread_shared(session_id: str, user_name: str, user_email: str, messages: list) -> bool:
-    """Save complete conversation thread"""
-    db = get_shared_db()
-    return db.save_conversation_thread(session_id, user_name, user_email, messages)
-
-def analyze_intent_patterns(df: pd.DataFrame) -> Dict:
-    """Analyze intent patterns from conversation data"""
-    if df.empty:
-        return {}
-    
-    intent_counts = df['detected_intent'].value_counts().to_dict()
-    
-    # Calculate response efficiency
-    avg_response_length = df.groupby('detected_intent')['response_length'].mean().to_dict()
-    
-    # Find most common questions
-    common_questions = df['user_message'].value_counts().head(10).to_dict()
-    
-    return {
-        'intent_distribution': intent_counts,
-        'avg_response_length': avg_response_length,
-        'common_questions': common_questions,
-        'total_conversations': len(df)
-    }
-
-def save_avatar_shared(avatar_base64: str) -> bool:
-    """Save avatar to shared database"""
-    db = get_shared_db()
-    return db.save_avatar(avatar_base64)
-
-def load_avatar_shared() -> Optional[str]:
-    """Load avatar from shared database"""
-    db = get_shared_db()
-    return db.get_avatar()
-
-def delete_avatar_shared() -> bool:
-    """Delete avatar from shared database"""
-    db = get_shared_db()
-    return db.delete_avatar()
-
-def save_resume_shared(filename: str, content: str, file_type: str, metadata: dict) -> bool:
-    """Save resume to shared database"""
-    db = get_shared_db()
-    return db.save_resume(filename, content, file_type, metadata)
-
-def load_resume_shared() -> Optional[Dict]:
-    """Load resume from shared database"""
-    db = get_shared_db()
-    return db.get_resume()
-
-def delete_resume_shared() -> bool:
-    """Delete resume from shared database"""
-    db = get_shared_db()
-    return db.delete_resume()
-
-def export_user_data_shared():
-    """Export user data from shared database"""
-    db = get_shared_db()
-    df = db.get_user_interactions()
-    if not df.empty:
-        return df.to_csv(index=False)
-    return None
-
-def show_database_status():
-    """Show database connection status"""
-    db = get_shared_db()
-    status = db.get_database_status()
-    
-    if status["connected"]:
-        st.success(f"✅ Connected to {status['database_type']}")
-        st.info(f"Last updated: {status.get('last_updated', 'Unknown')}")
-    else:
-        st.warning(f"⚠️ Using {status['database_type']} (limited functionality)")
-        st.info("Configure GitHub Gist for full app synchronization")
-    
-    return status
-
-# Original classes with minimal changes
-@dataclass
-class WebsiteContent:
-    """Data class for storing scraped website content"""
-    url: str
-    title: str
-    content: str
-    metadata: Dict
-    timestamp: datetime
-
-@dataclass
-class ResumeContent:
-    """Data class for storing resume content"""
-    filename: str
-    content: str
-    file_type: str
-    metadata: Dict
-    timestamp: datetime
-
-class AniketChatbotAI:
-    """Professional assistant for Aniket Shirsat's portfolio"""
-    
-    def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key)
-
-def get_image_base64(image_file):
-    """Convert uploaded image to base64 string"""
-    try:
-        img = Image.open(image_file)
-        img = img.resize((100, 100), Image.Resampling.LANCZOS)
-        buffered = BytesIO()
-        img.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        return f"data:image/png;base64,{img_str}"
-    except Exception as e:
-        st.error(f"Error processing avatar image: {str(e)}")
-        return None
-
-def calculate_conversation_duration(start_time: str, end_time: str) -> float:
-    """Calculate conversation duration in minutes"""
-    try:
-        start = pd.to_datetime(start_time)
-        end = pd.to_datetime(end_time)
-        duration = (end - start).total_seconds() / 60
-        return round(duration, 1)
-    except:
-        return 0.0
-
-def delete_conversation(session_id: str, timestamp) -> bool:
-    """Delete a specific conversation from the database"""
-    try:
-        db = get_shared_db()
-        data = db._load_gist_data()
-        
-        # Find and remove the conversation
-        conversations = data.get("conversations", [])
-        timestamp_str = timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp)
-        
-        # Filter out the conversation to delete
-        updated_conversations = [
-            conv for conv in conversations 
-            if not (conv.get('session_id') == session_id and conv.get('timestamp') == timestamp_str)
-        ]
-        
-        if len(updated_conversations) < len(conversations):
-            data["conversations"] = updated_conversations
-            data["last_updated"] = datetime.now().isoformat()
-            return db._save_gist_data(data)
-        else:
-            return False
-            
-    except Exception as e:
-        st.error(f"Error deleting conversation: {str(e)}")
-        return False
-
-class SimpleWebsiteScraper:
-    """Simplified website scraper using only requests and BeautifulSoup"""
-    
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
-        
-    def extract_links(self, base_url: str, soup: BeautifulSoup) -> List[str]:
-        """Extract all internal links from a page"""
-        links = set()
-        domain = urlparse(base_url).netloc
-        
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            full_url = urljoin(base_url, href)
-            
-            if urlparse(full_url).netloc == domain:
-                links.add(full_url)
-                
-        return list(links)
-    
-    def clean_text(self, text: str) -> str:
-        """Clean and normalize extracted text"""
-        text = ' '.join(text.split())
-        return text.strip()
-    
-    def scrape_page(self, url: str) -> Optional[WebsiteContent]:
-        """Scrape a single page and extract content"""
-        try:
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            for script in soup(["script", "style", "nav", "footer", "header"]):
-                script.decompose()
-            
-            title = soup.find('title')
-            title_text = title.get_text().strip() if title else url
-            
-            content_selectors = [
-                'main', 'article', '.content', '#content', 
-                '.post', '.entry-content', 'section'
-            ]
-            
-            content = ""
-            for selector in content_selectors:
-                elements = soup.select(selector)
-                if elements:
-                    content = ' '.join([elem.get_text() for elem in elements])
-                    break
-            
-            if not content:
-                body = soup.find('body')
-                if body:
-                    content = body.get_text()
-            
-            content = self.clean_text(content)
-            
-            metadata = {
-                'word_count': len(content.split()),
-                'scraped_at': datetime.now().isoformat(),
-            }
-            
-            meta_desc = soup.find('meta', attrs={'name': 'description'})
-            if meta_desc:
-                metadata['description'] = meta_desc.get('content', '')
-            
-            return WebsiteContent(
-                url=url,
-                title=title_text,
-                content=content,
-                metadata=metadata,
-                timestamp=datetime.now()
-            )
-            
-        except Exception as e:
-            st.error(f"Error scraping {url}: {str(e)}")
-            return None
-    
-    def scrape_website(self, base_url: str, max_pages: int = 10) -> List[WebsiteContent]:
-        """Scrape an entire website starting from base URL"""
-        scraped_content = []
-        visited_urls = set()
-        urls_to_visit = [base_url]
-        
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        while urls_to_visit and len(scraped_content) < max_pages:
-            current_url = urls_to_visit.pop(0)
-            
-            if current_url in visited_urls:
-                continue
-                
-            visited_urls.add(current_url)
-            
-            status_text.text(f"Analyzing: {current_url}")
-            progress = len(scraped_content) / max_pages
-            progress_bar.progress(min(progress, 1.0))
-            
-            content = self.scrape_page(current_url)
-            
-            if content and len(content.content) > 100:
-                scraped_content.append(content)
-                
-                if len(scraped_content) < max_pages:
-                    try:
-                        response = self.session.get(current_url, timeout=5)
-                        soup = BeautifulSoup(response.text, 'html.parser')
-                        new_links = self.extract_links(base_url, soup)
-                        
-                        for link in new_links:
-                            if link not in visited_urls and link not in urls_to_visit:
-                                urls_to_visit.append(link)
-                                
-                    except Exception as e:
-                        st.warning(f"Could not extract links from {current_url}")
-            
-            time.sleep(1)
-        
-        progress_bar.progress(1.0)
-        status_text.text(f"Analysis complete! Found {len(scraped_content)} pages.")
-        
-        return scraped_content
-
-class ResumeProcessor:
-    """Process and extract content from resume files"""
-    
-    @staticmethod
-    def extract_text_from_pdf(file_bytes: bytes) -> str:
-        """Extract text from PDF file"""
-        try:
-            pdf_file = BytesIO(file_bytes)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            
-            text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
-            
-            return text.strip()
-        except Exception as e:
-            st.error(f"Error reading PDF: {str(e)}")
-            return ""
-    
-    @staticmethod
-    def extract_text_from_docx(file_bytes: bytes) -> str:
-        """Extract text from DOCX file"""
-        try:
-            docx_file = BytesIO(file_bytes)
-            doc = docx.Document(docx_file)
-            
-            text = ""
-            for paragraph in doc.paragraphs:
-                text += paragraph.text + "\n"
-            
-            return text.strip()
-        except Exception as e:
-            st.error(f"Error reading DOCX: {str(e)}")
-            return ""
-    
-    @staticmethod
-    def extract_text_from_txt(file_bytes: bytes) -> str:
-        """Extract text from TXT file"""
-        try:
-            return file_bytes.decode('utf-8').strip()
-        except Exception as e:
-            st.error(f"Error reading TXT: {str(e)}")
-            return ""
-    
-    def process_resume(self, uploaded_file) -> Optional[ResumeContent]:
-        """Process uploaded resume file and extract content"""
-        try:
-            file_bytes = uploaded_file.read()
-            file_type = uploaded_file.type
-            filename = uploaded_file.name
-            
-            if file_type == "application/pdf":
-                content = self.extract_text_from_pdf(file_bytes)
-            elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                content = self.extract_text_from_docx(file_bytes)
-            elif file_type == "text/plain":
-                content = self.extract_text_from_txt(file_bytes)
-            else:
-                st.error(f"Unsupported file type: {file_type}")
-                return None
-            
-            if not content:
-                st.error("Could not extract text from the file")
-                return None
-            
-            metadata = {
-                'word_count': len(content.split()),
-                'file_size': len(file_bytes),
-                'processed_at': datetime.now().isoformat(),
-            }
-            
-            return ResumeContent(
-                filename=filename,
-                content=content,
-                file_type=file_type,
-                metadata=metadata,
-                timestamp=datetime.now()
-            )
-            
-        except Exception as e:
-            st.error(f"Error processing resume: {str(e)}")
-            return None
+# Rest of your existing functions with EDT updates where needed...
 
 def display_complete_conversation(conversation_thread: dict):
-    """Display a complete conversation thread in chat format"""
+    """Display a complete conversation thread in chat format with EDT timestamps"""
+    # Calculate duration and format times
+    start_time_display = convert_to_edt_display(conversation_thread['start_time'])
+    end_time_display = convert_to_edt_display(conversation_thread['end_time'])
+    
     st.markdown(f"""
     ### 💬 Complete Conversation
     **User:** {conversation_thread['user_name']} ({conversation_thread['user_email']})  
     **Session:** {conversation_thread['session_id']}  
+    **Start Time:** {start_time_display}  
+    **End Time:** {end_time_display}  
     **Duration:** {calculate_conversation_duration(conversation_thread['start_time'], conversation_thread['end_time'])} minutes  
     **Total Messages:** {conversation_thread['total_messages']}
     """)
@@ -801,7 +458,17 @@ def display_complete_conversation(conversation_thread: dict):
     messages = conversation_thread['conversation_flow']
     
     for i, message in enumerate(messages):
-        timestamp = pd.to_datetime(message['timestamp']).strftime('%H:%M:%S')
+        # Handle both old and new timestamp formats
+        if 'timestamp_edt' in message:
+            timestamp = message['timestamp_edt']
+        else:
+            timestamp = convert_to_edt_display(message.get('timestamp', ''))
+        
+        # Extract time portion for display
+        try:
+            time_only = timestamp.split(' ')[1] if ' ' in timestamp else timestamp
+        except:
+            time_only = timestamp
         
         if message['role'] == 'user':
             # User message
@@ -820,7 +487,7 @@ def display_complete_conversation(conversation_thread: dict):
                     margin-left: 30%;
                 ">
                     <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">
-                        {conversation_thread['user_name']} • {timestamp}
+                        {conversation_thread['user_name']} • {time_only}
                     </div>
                     {message['content']}
                 </div>
@@ -875,7 +542,7 @@ def display_complete_conversation(conversation_thread: dict):
                     max-width: 70%;
                 ">
                     <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
-                        Aniket's AI Assistant • {timestamp} {intent_badge}
+                        Aniket's AI Assistant • {time_only} {intent_badge}
                     </div>
                     {message['content']}
                 </div>
@@ -883,7 +550,7 @@ def display_complete_conversation(conversation_thread: dict):
             """, unsafe_allow_html=True)
 
 def conversation_search_and_filter():
-    """Simple conversation list with delete functionality - ALL FILTERS REMOVED"""
+    """Simple conversation list with delete functionality and EDT timestamps"""
     st.subheader("💬 All Conversations")
     
     conversation_data = load_conversation_data_shared()
@@ -924,7 +591,7 @@ def conversation_search_and_filter():
             st.download_button(
                 label="📥 Export All",
                 data=csv_data,
-                file_name=f"conversations_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                file_name=f"conversations_{get_edt_datetime().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv",
                 key="export_conversations"
             )
@@ -932,7 +599,7 @@ def conversation_search_and_filter():
         # Sort by most recent first
         sorted_data = filtered_data.sort_values('timestamp', ascending=False)
         
-        # Display conversations with delete option
+        # Display conversations with delete option and EDT timestamps
         for idx, (_, conv) in enumerate(sorted_data.iterrows()):
             intent_colors = {
                 'hiring': '#e74c3c', 'skills': '#3498db', 'projects': '#f39c12',
@@ -944,8 +611,11 @@ def conversation_search_and_filter():
             # Create unique key for each conversation
             conv_key = f"conv_{conv['session_id']}_{idx}"
             
+            # Use EDT display time if available, otherwise convert
+            display_time = conv.get('timestamp_display', convert_to_edt_display(conv['timestamp']))
+            
             with st.expander(
-                f"🕐 {conv['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} - {conv['user_name']} ({conv['detected_intent']})",
+                f"🕐 {display_time} - {conv['user_name']} ({conv['detected_intent']})",
                 expanded=False
             ):
                 # Conversation content
@@ -965,7 +635,8 @@ def conversation_search_and_filter():
                     <div style="font-size: 12px; color: #666;">
                         <strong>Session:</strong> {conv['session_id']} | 
                         <strong>Intent:</strong> {conv['detected_intent']} | 
-                        <strong>Response Length:</strong> {conv['response_length']} chars
+                        <strong>Response Length:</strong> {conv['response_length']} chars |
+                        <strong>Time (EDT):</strong> {display_time}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -982,81 +653,99 @@ def conversation_search_and_filter():
     else:
         st.info("No conversations found matching your search.")
 
-def conversation_export_options():
-    """Enhanced export options for conversation data"""
-    st.subheader("📥 Advanced Export Options")
+def enhanced_analytics_tab_v2():
+    """Simplified analytics with EDT timestamp support"""
+    st.header("📊 Conversation Analytics")
     
-    conversation_data = load_conversation_data_shared()
+    # Show current EDT time
+    current_edt = get_edt_datetime()
+    st.info(f"📅 Current EDT Time: {current_edt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
     
-    if conversation_data.empty:
-        st.info("No conversation data to export.")
-        return
+    # Simplified tabs
+    subtab1, subtab2, subtab3 = st.tabs([
+        "📈 Analytics", 
+        "🔍 Conversations", 
+        "📥 Export Options"
+    ])
     
-    col1, col2 = st.columns(2)
+    with subtab1:
+        # Simple analytics without complex filtering
+        conversation_data = load_conversation_data_shared()
+        
+        if conversation_data.empty:
+            st.info("No conversation data available yet.")
+            return
+        
+        # Convert timestamp to EDT for analysis
+        conversation_data['timestamp'] = pd.to_datetime(conversation_data['timestamp'], errors='coerce')
+        conversation_data_edt = conversation_data.copy()
+        conversation_data_edt['timestamp'] = conversation_data_edt['timestamp'].dt.tz_convert(EDT)
+        
+        # Add derived columns for analysis
+        conversation_data_edt['hour'] = conversation_data_edt['timestamp'].dt.hour
+        conversation_data_edt['day_of_week'] = conversation_data_edt['timestamp'].dt.day_name()
+        conversation_data_edt['date'] = conversation_data_edt['timestamp'].dt.date
+        
+        # Basic metrics
+        st.subheader("📊 Basic Analytics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total_sessions = conversation_data_edt['session_id'].nunique()
+            st.metric("Unique Sessions", total_sessions)
+        
+        with col2:
+            avg_messages_per_session = conversation_data_edt.groupby('session_id').size().mean()
+            st.metric("Avg Messages/Session", f"{avg_messages_per_session:.1f}")
+        
+        with col3:
+            avg_response_length = conversation_data_edt['response_length'].mean()
+            st.metric("Avg Response Length", f"{avg_response_length:.0f} chars")
+        
+        with col4:
+            total_unique_users = conversation_data_edt['user_email'].nunique()
+            st.metric("Unique Users", total_unique_users)
+        
+        # Time-based analysis (EDT)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("🕐 Activity by Hour (EDT)")
+            hourly_activity = conversation_data_edt['hour'].value_counts().sort_index()
+            st.bar_chart(hourly_activity)
+        
+        with col2:
+            st.subheader("📅 Activity by Day")
+            daily_activity = conversation_data_edt['day_of_week'].value_counts()
+            st.bar_chart(daily_activity)
+        
+        # Intent distribution
+        st.subheader("🎯 Intent Distribution")
+        intent_counts = conversation_data_edt['detected_intent'].value_counts()
+        st.bar_chart(intent_counts)
+        
+        # Recent activity summary
+        st.subheader("🕒 Recent Activity (EDT)")
+        recent_conversations = conversation_data_edt.head(10)
+        if not recent_conversations.empty:
+            for _, conv in recent_conversations.iterrows():
+                edt_time = conv['timestamp'].strftime('%Y-%m-%d %H:%M:%S %Z')
+                st.write(f"• {edt_time} - {conv['user_name']}: {conv['detected_intent']}")
     
-    with col1:
-        st.markdown("**📊 Standard Exports**")
-        
-        # Full conversation export
-        conv_csv = conversation_data.to_csv(index=False)
-        st.download_button(
-            label="📥 Complete Conversations (CSV)",
-            data=conv_csv,
-            file_name=f"conversations_complete_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            mime="text/csv",
-            key="export_complete_csv"
-        )
-        
-        # JSON export for backup
-        conv_json = conversation_data.to_json(orient='records', date_format='iso')
-        st.download_button(
-            label="📥 Complete Conversations (JSON)",
-            data=conv_json,
-            file_name=f"conversations_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
-            mime="application/json",
-            key="export_complete_json"
-        )
+    with subtab2:
+        conversation_search_and_filter()
     
-    with col2:
-        st.markdown("**📈 Analytics Exports**")
-        
-        # Intent summary
-        intent_summary = conversation_data.groupby('detected_intent').agg({
-            'user_message': 'count',
-            'response_length': 'mean',
-            'message_length': 'mean'
-        }).round(2)
-        intent_summary.columns = ['Total_Questions', 'Avg_Response_Length', 'Avg_Question_Length']
-        
-        intent_csv = intent_summary.to_csv()
-        st.download_button(
-            label="📊 Intent Analytics (CSV)",
-            data=intent_csv,
-            file_name=f"intent_analytics_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            key="export_intent_analytics"
-        )
-        
-        # User engagement summary
-        user_summary = conversation_data.groupby('user_email').agg({
-            'user_message': 'count',
-            'session_id': 'nunique',
-            'detected_intent': lambda x: len(x.unique()),
-            'timestamp': ['min', 'max']
-        }).round(2)
-        
-        user_csv = user_summary.to_csv()
-        st.download_button(
-            label="👥 User Engagement (CSV)",
-            data=user_csv,
-            file_name=f"user_engagement_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            key="export_user_engagement"
-        )
+    with subtab3:
+        conversation_export_options()
 
 def conversation_threads_tab():
-    """Complete conversation threads management tab - NO FILTERS"""
+    """Complete conversation threads management tab with EDT timestamps"""
     st.header("💬 Complete Conversation Threads")
+    
+    # Show current EDT time
+    current_edt = get_edt_datetime()
+    st.info(f"📅 Current EDT Time: {current_edt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
     
     # Load conversation threads
     threads_df = load_conversation_threads_shared()
@@ -1069,6 +758,7 @@ def conversation_threads_tab():
         2. All messages in that session are saved together
         3. You can view the complete conversation flow
         4. Threads are automatically saved when sessions end
+        5. All timestamps are displayed in EDT timezone
         """)
         return
     
@@ -1095,9 +785,9 @@ def conversation_threads_tab():
         total_messages = threads_df['total_messages'].sum()
         st.metric("Total Messages", total_messages)
     
-    st.write(f"**Showing all {len(threads_df)} conversations**")
+    st.write(f"**Showing all {len(threads_df)} conversations (times in EDT)**")
     
-    # Conversation list - NO FILTERS
+    # Conversation list
     if not threads_df.empty:
         # Sort by most recent first
         filtered_df = threads_df.sort_values('start_time', ascending=False)
@@ -1106,8 +796,11 @@ def conversation_threads_tab():
             # Create unique key using index to avoid duplicates
             unique_key = f"thread_{idx}_{thread['session_id']}"
             
+            # Use EDT display times
+            start_display = thread.get('start_time_display', convert_to_edt_display(thread['start_time']))
+            
             with st.expander(
-                f"💬 {thread['user_name']} • {thread['start_time'].strftime('%Y-%m-%d %H:%M')} • "
+                f"💬 {thread['user_name']} • {start_display} • "
                 f"{thread['total_messages']} messages • {thread['duration_minutes']}m"
             ):
                 col1, col2 = st.columns([3, 1])
@@ -1115,6 +808,7 @@ def conversation_threads_tab():
                 with col1:
                     st.write(f"**User:** {thread['user_name']} ({thread['user_email']})")
                     st.write(f"**Session ID:** {thread['session_id']}")
+                    st.write(f"**Start Time (EDT):** {start_display}")
                     st.write(f"**Duration:** {thread['duration_minutes']} minutes")
                 
                 with col2:
