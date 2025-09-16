@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import json
 import re
 import requests
-import pytz  # Add this import for timezone handling
+import pytz
 
 # Environment setup
 from dotenv import load_dotenv
@@ -131,7 +131,7 @@ class GitHubGistDatabase:
             "app_settings": {},
             "messages_for_aniket": [],
             "conversation_threads": [],
-            "last_updated": get_edt_timestamp()  # Updated to use EDT
+            "last_updated": get_edt_timestamp()
         }
     
     def _get_local_data(self) -> Dict:
@@ -153,15 +153,15 @@ class GitHubGistDatabase:
             edt_now = get_edt_datetime()
             
             user_entry = {
-                "timestamp": get_edt_timestamp(),  # Updated to use EDT
-                "timestamp_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z'),  # Human readable EDT
+                "timestamp": get_edt_timestamp(),
+                "timestamp_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z'),
                 "name": name,
                 "email": email,
                 "session_id": session_id
             }
             
             data["user_interactions"].append(user_entry)
-            data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
+            data["last_updated"] = get_edt_timestamp()
             
             return self._save_gist_data(data)
             
@@ -177,10 +177,10 @@ class GitHubGistDatabase:
             edt_now = get_edt_datetime()
             
             conversation_entry = {
-                "timestamp": get_edt_timestamp(),  # Updated to use EDT
-                "timestamp_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z'),  # Human readable EDT
-                "date": edt_now.strftime('%Y-%m-%d'),  # Date only for filtering
-                "time": edt_now.strftime('%H:%M:%S'),  # Time only for filtering
+                "timestamp": get_edt_timestamp(),
+                "timestamp_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z'),
+                "date": edt_now.strftime('%Y-%m-%d'),
+                "time": edt_now.strftime('%H:%M:%S'),
                 "session_id": session_id,
                 "user_name": user_name,
                 "user_email": user_email,
@@ -195,7 +195,7 @@ class GitHubGistDatabase:
                 data["conversations"] = []
             
             data["conversations"].append(conversation_entry)
-            data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
+            data["last_updated"] = get_edt_timestamp()
             
             return self._save_gist_data(data)
             
@@ -210,8 +210,8 @@ class GitHubGistDatabase:
             edt_now = get_edt_datetime()
             
             message_entry = {
-                "timestamp": get_edt_timestamp(),  # Updated to use EDT
-                "timestamp_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z'),  # Human readable EDT
+                "timestamp": get_edt_timestamp(),
+                "timestamp_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z'),
                 "user_name": user_name,
                 "user_email": user_email,
                 "message_content": message_content,
@@ -224,7 +224,7 @@ class GitHubGistDatabase:
                 data["messages_for_aniket"] = []
             
             data["messages_for_aniket"].append(message_entry)
-            data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
+            data["last_updated"] = get_edt_timestamp()
             
             return self._save_gist_data(data)
             
@@ -285,7 +285,7 @@ class SmartHybridChatbot:
             "education": {
                 "current": {
                     "degree": "Master's in Applied Data Science",
-                    "university": "Indiana University Indianapolis", 
+                    "university": "Indiana University Indianapolis",
                     "gpa": "4.0",
                     "status": "In Progress"
                 },
@@ -304,7 +304,7 @@ class SmartHybridChatbot:
                         "domain": "Machine Learning, NLP"
                     },
                     {
-                        "name": "Vessel Fuel Optimization", 
+                        "name": "Vessel Fuel Optimization",
                         "result": "$1 million annual savings through ML optimization",
                         "impact": "5% fuel reduction across 50+ vessels"
                     }
@@ -319,7 +319,7 @@ class SmartHybridChatbot:
             },
             "achievements": [
                 "Perfect 4.0 GPA in Master's program",
-                "90% accuracy in cultural ambiguity detection models", 
+                "90% accuracy in cultural ambiguity detection models",
                 "$1 million annual savings through ML optimization",
                 "5% fuel reduction across 50+ vessels",
                 "Research Assistant position while maintaining academic excellence"
@@ -502,7 +502,7 @@ Provide a natural, conversational response (2-3 sentences max) that directly ans
         ending_signals = any(phrase in input_lower for phrase in self.conversation_patterns["conversation_enders"])
         
         # Check for conversation length (offer closure after comprehensive responses)
-        long_conversation = message_count >= 8  # After 4 exchanges
+        long_conversation = message_count >= 8
         
         # Check for specific closure indicators
         closure_phrases = [
@@ -572,7 +572,7 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
         
         # Enhanced message for contact detection - moved higher in priority
         if (any(phrase in input_lower for phrase in [
-            "leave a message", "message for him", "ask him to contact", "have him call", 
+            "leave a message", "message for him", "ask him to contact", "have him call",  
             "get back to me", "follow up", "reach out to me", "contact me back",
             "call me back", "email me back", "get in touch with me", "message me",
             "have him reach out", "ask him to reach out", "tell him to call",
@@ -628,7 +628,7 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
             elif ending_intent == "continue_conversation":
                 return "continue_conversation"
             else:
-                return "general"  # Treat unclear responses as new questions
+                return "general"
         
         # Availability and timing - expanded
         elif any(word in input_lower for word in ["available", "availability", "start", "starting", "when", "timeline", "notice", "free", "ready to work", "ready", "can start", "join", "begin", "commence", "timing", "schedule"]):
@@ -708,10 +708,9 @@ Feel free to start a new conversation anytime. Have a great day! 👋"""
                 response = self.get_predefined_response(intent, context, is_casual, is_formal)
         
         # Check if we should offer conversation closure after the response
-        message_count = len(st.session_state.messages) // 2  # Approximate exchange count
+        message_count = len(st.session_state.messages) // 2
         if (self.should_offer_conversation_closure(user_input, message_count) and 
             not st.session_state.get('awaiting_closure_response', False)):
-            # Add the closure offer to the response
             response += "\n\n" + self.get_conversation_closure_offer()
             st.session_state.awaiting_closure_response = True
             
@@ -861,7 +860,7 @@ def main():
         layout="centered"
     )
     
-    # Enhanced CSS with COMPLETE close button removal including iframe/embed elements
+    # Corrected CSS with more aggressive rules for a clean UI
     st.markdown("""
     <style>
         /* Complete app reset and layout */
@@ -873,7 +872,7 @@ def main():
         }
         
         /* Hide ALL Streamlit default elements */
-        .stApp > header {
+        header, #MainMenu, footer, .stDeployButton {
             visibility: hidden !important;
             height: 0 !important;
             display: none !important;
@@ -886,37 +885,7 @@ def main():
         }
         
         /* AGGRESSIVE close button hiding - targeting iframe/embed elements */
-        .stDeployButton {display: none !important;}
-        #MainMenu {visibility: hidden !important;}
-        footer {visibility: hidden !important;}
-        
-        /* Hide parent container close buttons (iframe level) */
-        html, body {
-            overflow: hidden !important;
-        }
-        
-        /* Target all possible close button variations */
-        button[title="Close"],
-        button[aria-label="Close"],
-        button[data-testid="close-button"],
-        button[data-testid="closeButton"],
-        .close-button,
-        .close-btn,
-        [class*="close"],
-        [id*="close"],
-        button:contains("✕"),
-        button:contains("×"),
-        button:contains("X"),
-        /* Streamlit Cloud specific selectors */
-        .st-emotion-cache-*[title="Close"],
-        [data-baseweb="button"][aria-label="Close"],
-        [data-baseweb="button"]:contains("×"),
-        /* Additional iframe/embed selectors */
-        .streamlit-container .close,
-        .streamlit-app .close,
-        iframe + .close,
-        .embed-close,
-        .modal-close {
+        button[title="Close"], button[aria-label="Close"], .close-button, .close-btn, [class*="close"], [id*="close"], button:contains("✕"), button:contains("×"), button:contains("X") {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -927,36 +896,14 @@ def main():
             width: 0 !important;
             height: 0 !important;
         }
-        
+
         /* Hide any standalone X symbols */
-        div:contains("✕"):not(.message-bubble):not(.user-bubble),
-        div:contains("×"):not(.message-bubble):not(.user-bubble),
-        span:contains("✕"),
-        span:contains("×") {
+        div:contains("✕"):not(.message-bubble):not(.user-bubble), div:contains("×"):not(.message-bubble):not(.user-bubble), span:contains("✕"), span:contains("×") {
             display: none !important;
         }
-        
+
         /* Remove any containers that might hold close buttons */
-        .element-container:has(button:contains("✕")),
-        .element-container:has(button:contains("×")),
-        .element-container:has(button[title="Close"]),
-        .element-container:has(button[aria-label="Close"]) {
-            display: none !important;
-        }
-        
-        /* Additional safety net for any missed close elements */
-        [role="button"]:contains("✕"),
-        [role="button"]:contains("×"),
-        [tabindex]:contains("✕"),
-        [tabindex]:contains("×") {
-            display: none !important;
-        }
-        
-        /* Force hide top-right corner elements */
-        .stApp > div:first-child > div:first-child > div:last-child,
-        .stApp > header,
-        .stApp div[data-testid="stHeader"],
-        div[data-testid="stToolbar"] {
+        .element-container:has(button:contains("✕")), .element-container:has(button:contains("×")), .element-container:has(button[title="Close"]), .element-container:has(button[aria-label="Close"]) {
             display: none !important;
         }
         
@@ -982,18 +929,19 @@ def main():
             position: relative;
         }
         
+        .chat-header h3 {
+            color: white !important; /* Force the header text color to white */
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
         .chat-avatar {
             width: 50px;
             height: 50px;
             border-radius: 50%;
             border: 3px solid rgba(255,255,255,0.3);
             object-fit: cover;
-        }
-        
-        .chat-title h3 {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 600;
         }
         
         .chat-subtitle {
@@ -1249,8 +1197,7 @@ def main():
             setTimeout(removeAllCloseElements, 100);
             setTimeout(removeAllCloseElements, 500);
             setTimeout(removeAllCloseElements, 1000);
-            setTimeout(removeAllCloseElements, 2000);
-            setTimeout(removeAllCloseElements, 5000);
+            setTimeout(setTimeout(removeAllCloseElements, 2000), 5000);
         })();
     </script>
     """, unsafe_allow_html=True)
@@ -1286,22 +1233,22 @@ def main():
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {
-                "role": "assistant", 
+                "role": "assistant",
                 "content": "Hello! I'm Aniket's AI Assistant. I can help answer questions about his professional background, skills, and experience."
             },
             {
-                "role": "assistant", 
+                "role": "assistant",
                 "content": "To get started, may I please have your name?"
             }
         ]
         st.session_state.asking_for_name = True
     
-    # Chat UI - Header section without ANY close functionality
+    # Chat UI - Header section with no close functionality
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
     # Clean header with no buttons whatsoever
     shared_avatar = get_shared_avatar()
-    avatar_src = shared_avatar if shared_avatar else "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTIgMTJDMTQuNzYxNCAxMiAxNyA5Ljc2MTQyIDE3IDdDMTcgNC4yMzg1OCAxNC43NjE0IDIgMTIgMkM5LjIzODU4IDIgNyA0LjIzODU4IDcgN0M3IDkuNzYxNDIgOS4yMzg1OCAxMiAxMiAxMlpNMTIgMTRDOC42ODYyOSAxNCA2IDE2LjIzODYgNiAxOUg2QzYgMjEuNzYxNCA4LjIzODU4IDI0IDExIDI0SDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
+    avatar_src = shared_avatar if shared_avatar else "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnPgo8Y2lyY2xlIGN4PSIyNSIgY3k9IjI1IiByPSIyNSIgZmlsbD0iIzY2N2VlYSIvPgo8c3ZnIHg9IjEyIiB5PSIxMiIgd2lkdGg9IjI2IiBoZWlnaHQ9IjI2IiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xMiAxMkMxNC43NjE0IDEyIDE3IDkuNzYxNDIgMTcgN0MxNyA0LjIzODU4IDE0Ljc2MTQgMiAxMiAyQzkuMjM4NTggMiA3IDQuMjM4NTggNyA3QzcgOS43NjE0MiA5LjIzODU4IDEyIDEyIDEyWk0xMiAxNEM4LjY4NjI5IDE0IDYgMTYuMjM4NiA2IDE5SDZDOCAyMS43NjE0IDguMjM4NTggMjQgMTEgMjRINDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
     
     st.markdown(f"""
     <div class="chat-header">
@@ -1318,11 +1265,10 @@ def main():
     
     for message in st.session_state.messages:
         if message["role"] == "assistant":
-            bot_avatar = f'<img src="{avatar_src}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover;">' if shared_avatar else '<div style="width: 35px; height: 35px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px;">🤖</div>'
-            
+            bot_avatar_src = shared_avatar if shared_avatar else "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnPgo8Y2lyY2xlIGN4PSIyNSIgY3k9IjI1IiByPSIyNSIgZmlsbD0iIzY2N2VlYSIvPgo8c3ZnIHg9IjEyIiB5PSIxMiIgd2lkdGg9IjI2IiBoZWlnaHQ9IjI2IiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xMiAxMkMxNC43NjE0IDEyIDE3IDkuNzYxNDIgMTcgN0MxNyA0LjIzODU4IDE0Ljc2MTQgMiAxMiAyQzkuMjM4NTggMiA3IDQuMjM4NTggNyA3QzcgOS43NjE0MiA5LjIzODU4IDEyIDEyIDEyWk0xMiAxNEM4LjY4NjI5IDE0IDYgMTYuMjM4NiA2IDE5SDZDOCAyMS43NjE0IDguMjM4NTggMjQgMTEgMjRINDEzQzE1Ljc2MTQgMjQgMTggMjEuNzYxNCAxOCAxOUg2QzYgMTYuMjM4NiA5LjMxMzcxIDE0IDEyIDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo="
             st.markdown(f"""
             <div class="assistant-message">
-                {bot_avatar}
+                <img src="{bot_avatar_src}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover;">
                 <div class="message-bubble">{message["content"]}</div>
             </div>
             """, unsafe_allow_html=True)
@@ -1354,7 +1300,7 @@ def main():
                 # Add user choice to messages
                 st.session_state.messages.append({"role": "user", "content": "✅ Yes, I'll share my email"})
                 st.session_state.messages.append({
-                    "role": "assistant", 
+                    "role": "assistant",
                     "content": "Perfect! Please enter your email address below:"
                 })
                 st.rerun()
@@ -1367,20 +1313,19 @@ def main():
                 # Add user choice to messages
                 st.session_state.messages.append({"role": "user", "content": "❌ No, skip email"})
                 st.session_state.messages.append({
-                    "role": "assistant", 
+                    "role": "assistant",
                     "content": f"No problem{', ' + st.session_state.user_display_name if st.session_state.user_display_name else ''}! I'm ready to answer questions about Aniket's professional background. What would you like to know?"
                 })
                 st.rerun()
     
-    st.markdown('</div>', unsafe_allow_html=True)  # Close message-container
-    st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     
     # Dynamic chat input placeholders
     if st.session_state.asking_for_name:
         placeholder = "Enter your name..."
     elif st.session_state.showing_email_buttons:
         placeholder = "Please use the buttons above to choose..."
-        # Disable input when showing buttons
         st.chat_input(placeholder, disabled=True)
         return
     elif st.session_state.asking_for_email:
@@ -1391,7 +1336,6 @@ def main():
         placeholder = "Ask about Aniket's skills, experience, projects, or why you should hire him..."
     
     if prompt := st.chat_input(placeholder):
-        # Check if we need to reset conversation first
         if check_and_reset_if_needed():
             st.rerun()
             return
@@ -1399,29 +1343,23 @@ def main():
         st.session_state.messages.append({"role": "user", "content": prompt})
         
         if st.session_state.asking_for_name:
-            # SIMPLIFIED: Accept whatever they type as the name, no validation
             user_input = prompt.strip()
             
-            # Set the name (even if empty)
             st.session_state.user_name = user_input if user_input else "Guest"
             st.session_state.asking_for_name = False
             
-            # Extract first name for display (or use full name if one word)
             if user_input:
                 name_parts = user_input.split()
                 st.session_state.user_display_name = name_parts[0]
             else:
                 st.session_state.user_display_name = "Guest"
             
-            # Directly proceed to email buttons without intermediate response
             st.session_state.showing_email_buttons = True
         
         elif st.session_state.asking_for_email:
-            # Handle email input
             extracted_email = extract_email_from_input(prompt)
             
             if extracted_email and is_valid_email(extracted_email):
-                # Valid email - save it
                 st.session_state.user_email = extracted_email
                 st.session_state.asking_for_email = False
                 
@@ -1431,7 +1369,6 @@ def main():
                 st.session_state.messages.append({"role": "assistant", "content": response})
             
             elif is_valid_email(prompt.strip()):
-                # Valid email format - save it
                 st.session_state.user_email = prompt.strip()
                 st.session_state.asking_for_email = False
                 
@@ -1441,12 +1378,10 @@ def main():
                 st.session_state.messages.append({"role": "assistant", "content": response})
             
             else:
-                # Invalid email - ask again
                 response = "That doesn't look like a valid email address. Could you please try again? (e.g., john@company.com)"
                 st.session_state.messages.append({"role": "assistant", "content": response})
         
         elif st.session_state.asking_for_message:
-            # Handle message collection for Aniket
             message_content = prompt.strip()
             
             if message_content.lower() in ['cancel', 'nevermind', 'skip']:
@@ -1457,7 +1392,6 @@ def main():
                 response = "Could you please provide a bit more detail in your message? What would you like Aniket to know or follow up about?"
                 st.session_state.messages.append({"role": "assistant", "content": response})
             else:
-                # Save the message
                 message_saved = save_message_for_aniket(
                     st.session_state.user_name,
                     st.session_state.user_email,
@@ -1481,13 +1415,10 @@ Your message: "{message_content}" """
                 st.session_state.messages.append({"role": "assistant", "content": response})
         
         else:
-            # Normal chat - standard response system
             with st.spinner("🤖 Analyzing your question..."):
                 response, intent = st.session_state.chatbot.generate_response(prompt)
             
-            # Special handling for message_for_contact intent
             if intent == "message_for_contact":
-                # Extract contact info from the current message
                 phone_pattern = r'(\+?\d{1,4}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})'
                 phone_match = re.search(phone_pattern, prompt)
                 email_match = extract_email_from_input(prompt)
@@ -1511,21 +1442,16 @@ What message would you like me to pass along to him? Please share what you'd lik
                 
             st.session_state.messages.append({"role": "assistant", "content": response})
             
-            # Handle conversation ending
             if intent == "end_conversation":
-                # End the conversation and reset for fresh start
                 st.session_state.conversation_ending = True
                 
-                # Save final conversation thread
                 if hasattr(st.session_state, 'conversation_thread') and st.session_state.conversation_thread:
-                    # Add final user message to thread
                     st.session_state.conversation_thread.append({
                         'role': 'user',
                         'content': prompt,
                         'timestamp': get_edt_timestamp(),
                         'timestamp_edt': get_edt_datetime().strftime('%Y-%m-%d %H:%M:%S %Z')
                     })
-                    # Add final bot response to thread
                     st.session_state.conversation_thread.append({
                         'role': 'assistant',
                         'content': response,
@@ -1541,10 +1467,8 @@ What message would you like me to pass along to him? Please share what you'd lik
                         st.session_state.conversation_thread
                     )
                 
-                # Schedule reset for next interaction
                 st.session_state.reset_on_next_message = True
             else:
-                # Enhanced logging with conversation threads
                 log_conversation_with_thread(
                     st.session_state.session_id,
                     prompt,
@@ -1568,10 +1492,8 @@ def check_and_reset_if_needed():
 def log_conversation_with_thread(session_id: str, user_message: str, bot_response: str, intent: str, user_name: str = "", user_email: str = ""):
     """Enhanced logging that maintains conversation threads with EDT timestamps"""
     
-    # Log individual message (existing functionality)
     log_conversation_to_dashboard(session_id, user_message, bot_response, intent, user_name, user_email)
     
-    # Build conversation thread
     if 'conversation_thread' not in st.session_state:
         st.session_state.conversation_thread = []
     
@@ -1579,7 +1501,6 @@ def log_conversation_with_thread(session_id: str, user_message: str, bot_respons
     timestamp_iso = get_edt_timestamp()
     timestamp_readable = edt_now.strftime('%Y-%m-%d %H:%M:%S %Z')
     
-    # Add user message
     st.session_state.conversation_thread.append({
         'role': 'user',
         'content': user_message,
@@ -1587,7 +1508,6 @@ def log_conversation_with_thread(session_id: str, user_message: str, bot_respons
         'timestamp_edt': timestamp_readable
     })
     
-    # Add bot response
     st.session_state.conversation_thread.append({
         'role': 'assistant',
         'content': bot_response,
@@ -1596,18 +1516,16 @@ def log_conversation_with_thread(session_id: str, user_message: str, bot_respons
         'timestamp_edt': timestamp_readable
     })
     
-    # Save thread periodically (every 10 messages) or when session ends
-    if len(st.session_state.conversation_thread) % 10 == 0:  # Every 5 exchanges
+    if len(st.session_state.conversation_thread) % 10 == 0:
         save_complete_conversation(
-            session_id, 
-            user_name, 
-            user_email, 
+            session_id,
+            user_name,
+            user_email,
             st.session_state.conversation_thread.copy()
         )
 
 def reset_conversation_session():
     """Reset the conversation session for a fresh start"""
-    # Save the current conversation thread before resetting
     if hasattr(st.session_state, 'conversation_thread') and st.session_state.conversation_thread:
         save_complete_conversation(
             st.session_state.session_id,
@@ -1616,26 +1534,21 @@ def reset_conversation_session():
             st.session_state.conversation_thread
         )
     
-    # Keep user info but reset conversation state
     user_name = st.session_state.get('user_name', '')
     user_email = st.session_state.get('user_email', '')
     user_display_name = st.session_state.get('user_display_name', '')
     
-    # Clear conversation-specific state
     for key in list(st.session_state.keys()):
         if key not in ['user_name', 'user_email', 'user_display_name', 'chatbot']:
             del st.session_state[key]
     
-    # Restore user info
     st.session_state.user_name = user_name
     st.session_state.user_email = user_email
     st.session_state.user_display_name = user_display_name
     
-    # Create new session ID with EDT timestamp
     edt_now = get_edt_datetime()
     st.session_state.session_id = f"enhanced_{edt_now.strftime('%Y%m%d_%H%M%S')}_edt"
     
-    # Reset conversation state
     st.session_state.awaiting_closure_response = False
     st.session_state.conversation_thread = []
     st.session_state.asking_for_email = False
@@ -1644,11 +1557,10 @@ def reset_conversation_session():
     st.session_state.showing_email_buttons = False
     st.session_state.email_choice_made = False
     
-    # Set fresh greeting message
     greeting_name = f" {user_display_name}" if user_display_name else ""
     st.session_state.messages = [
         {
-            "role": "assistant", 
+            "role": "assistant",
             "content": f"Hello{greeting_name}! I'm ready to help with any new questions about Aniket's background, skills, or experience. What would you like to know?"
         }
     ]
@@ -1661,7 +1573,6 @@ def save_complete_conversation(session_id: str, user_name: str, user_email: str,
         
         edt_now = get_edt_datetime()
         
-        # Create conversation thread entry
         conversation_thread = {
             "session_id": session_id,
             "user_name": user_name,
@@ -1671,16 +1582,15 @@ def save_complete_conversation(session_id: str, user_name: str, user_email: str,
             "start_time_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z') if not conversation_messages else conversation_messages[0].get('timestamp_edt', ''),
             "end_time_edt": edt_now.strftime('%Y-%m-%d %H:%M:%S %Z') if not conversation_messages else conversation_messages[-1].get('timestamp_edt', ''),
             "total_messages": len(conversation_messages),
-            "conversation_flow": conversation_messages,  # Complete conversation
-            "saved_at": get_edt_timestamp()  # Updated to use EDT
+            "conversation_flow": conversation_messages,
+            "saved_at": get_edt_timestamp()
         }
         
-        # Add to conversation threads
         if "conversation_threads" not in data:
             data["conversation_threads"] = []
         
         data["conversation_threads"].append(conversation_thread)
-        data["last_updated"] = get_edt_timestamp()  # Updated to use EDT
+        data["last_updated"] = get_edt_timestamp()
         
         return db._save_gist_data(data)
         
